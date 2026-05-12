@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     cloudinary_api_secret: str = ""
 
     pinecone_api_key: str = ""
-    pinecone_index_name: str = "quangbinhgo-places"
+    pinecone_index_name: str = "quangbinhgo-review-posts"
     sentence_transformer_model: str = "sentence-transformers/all-MiniLM-L6-v2"
 
     @property

@@ -17,6 +17,8 @@ from app.schemas.review_post import (
     ReviewPostRead,
 )
 from app.services.review_post_service import ReviewPostService
+from app.services.embedding_service import EmbeddingService
+from app.services.vector_search_service import VectorSearchService
 
 router = APIRouter()
 
@@ -25,6 +27,8 @@ def get_review_post_service(db: Session = Depends(get_db)) -> ReviewPostService:
     return ReviewPostService(
         review_post_repository=ReviewPostRepository(db),
         place_repository=PlaceRepository(db),
+        embedding_service=EmbeddingService(),
+        vector_search_service=VectorSearchService(),
     )
 
 

@@ -12,6 +12,8 @@ from app.schemas.review_post import (
     ReviewPostCreate,
     ReviewPostRead,
 )
+from app.services.embedding_service import EmbeddingService
+from app.services.vector_search_service import VectorSearchService
 
 
 class ReviewPostService:
@@ -19,9 +21,13 @@ class ReviewPostService:
         self,
         review_post_repository: ReviewPostRepository,
         place_repository: PlaceRepository,
+        embedding_service: EmbeddingService | None = None,
+        vector_search_service: VectorSearchService | None = None,
     ) -> None:
         self.review_post_repository = review_post_repository
         self.place_repository = place_repository
+        self.embedding_service = embedding_service
+        self.vector_search_service = vector_search_service
 
     def create_post(self, *, current_user: User, post_create: ReviewPostCreate) -> ReviewPostRead:
         if not self.place_repository.get(post_create.place_id):
@@ -31,12 +37,13 @@ class ReviewPostService:
             )
 
         post = self.review_post_repository.create(user_id=current_user.id, post_create=post_create)
-        return self._build_post_read(post, likes_count=0, comments_count=0, saves_count=0)
+        self._index_post(post)
+        return self.build_post_read(post, likes_count=0, comments_count=0, saves_count=0)
 
     def get_feed(self, *, sort: str = "latest", skip: int = 0, limit: int = 20) -> list[ReviewPostRead]:
         rows = self.review_post_repository.feed(sort=sort, skip=skip, limit=limit)
         return [
-            self._build_post_read(
+            self.build_post_read(
                 post,
                 likes_count=likes_count,
                 comments_count=comments_count,
@@ -106,7 +113,7 @@ class ReviewPostService:
             )
         return post
 
-    def _build_post_read(
+    def build_post_read(
         self,
         post,
         *,
@@ -124,3 +131,11 @@ class ReviewPostService:
                 "saves_count": saves_count,
             }
         )
+
+    def _index_post(self, post) -> None:
+        if not self.embedding_service or not self.vector_search_service:
+            return
+
+        text = f"{post.title}\n\n{post.content}"
+        embedding = self.embedding_service.embed_text(text)
+        self.vector_search_service.upsert_review_post(post=post, embedding=embedding)

@@ -55,6 +55,32 @@ class ReviewPostRepository:
 
         return self.db.execute(statement).all()
 
+    def get_many_with_counts(self, post_ids: list[int]) -> dict[int, tuple[ReviewPost, int, int, int]]:
+        if not post_ids:
+            return {}
+
+        likes_count = func.count(func.distinct(PostLike.id)).label("likes_count")
+        comments_count = func.count(func.distinct(PostComment.id)).label("comments_count")
+        saves_count = func.count(func.distinct(PostSave.id)).label("saves_count")
+
+        statement = (
+            select(ReviewPost, likes_count, comments_count, saves_count)
+            .outerjoin(PostLike, PostLike.post_id == ReviewPost.id)
+            .outerjoin(PostComment, PostComment.post_id == ReviewPost.id)
+            .outerjoin(PostSave, PostSave.post_id == ReviewPost.id)
+            .where(ReviewPost.id.in_(post_ids))
+            .group_by(ReviewPost.id)
+            .options(
+                selectinload(ReviewPost.author),
+                selectinload(ReviewPost.place),
+            )
+        )
+
+        return {
+            post.id: (post, likes_count_value, comments_count_value, saves_count_value)
+            for post, likes_count_value, comments_count_value, saves_count_value in self.db.execute(statement).all()
+        }
+
     def get_like(self, *, post_id: int, user_id: int) -> PostLike | None:
         statement = select(PostLike).where(PostLike.post_id == post_id, PostLike.user_id == user_id)
         return self.db.scalar(statement)
