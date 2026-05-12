@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     debug: bool = Field(default=True, alias="APP_DEBUG")
     api_v1_prefix: str = "/api/v1"
-    cors_origins_raw: str = Field(default="http://localhost:5173", alias="CORS_ORIGINS")
+    cors_origins_raw: str = Field(default="http://localhost:5173,http://127.0.0.1:5173", alias="CORS_ORIGINS")
 
     database_url: str = "postgresql+psycopg://quangbinhgo:quangbinhgo@localhost:5432/quangbinhgo"
     secret_key: str = "change-me"

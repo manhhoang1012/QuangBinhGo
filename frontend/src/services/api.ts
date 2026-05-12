@@ -6,3 +6,25 @@ export const api = axios.create({
     "Content-Type": "application/json",
   },
 });
+
+export interface Place {
+  id: number;
+  name: string;
+  description: string;
+  category: string;
+  address: string;
+  latitude: string | number;
+  longitude: string | number;
+  images: string[];
+  rating_avg: string | number;
+}
+
+interface GetPlacesParams {
+  category?: string;
+  search?: string;
+}
+
+export async function getPlaces(params: GetPlacesParams = {}) {
+  const response = await api.get<Place[]>("/places", { params });
+  return response.data;
+}
