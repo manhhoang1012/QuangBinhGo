@@ -2,7 +2,6 @@ from functools import lru_cache
 from typing import Any
 
 from fastapi import HTTPException, status
-from pinecone import Pinecone
 
 from app.core.config import settings
 from app.models.review_post import ReviewPost
@@ -15,6 +14,8 @@ def get_pinecone_index():
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Pinecone API key is not configured.",
         )
+
+    from pinecone import Pinecone
 
     pinecone = Pinecone(api_key=settings.pinecone_api_key)
     return pinecone.Index(settings.pinecone_index_name)

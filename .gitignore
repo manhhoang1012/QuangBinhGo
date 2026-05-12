@@ -34,3 +34,4 @@ Thumbs.db
 # Local data
 *.sqlite3
 *.db
+venv/

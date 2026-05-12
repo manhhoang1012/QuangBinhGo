@@ -17,7 +17,7 @@ class Settings(BaseSettings):
 
     app_name: str = "QuangBinhGo"
     app_env: str = "development"
-    debug: bool = True
+    debug: bool = Field(default=True, alias="APP_DEBUG")
     api_v1_prefix: str = "/api/v1"
     cors_origins_raw: str = Field(default="http://localhost:5173", alias="CORS_ORIGINS")
 
@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     pinecone_api_key: str = ""
     pinecone_index_name: str = "quangbinhgo-review-posts"
     sentence_transformer_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    auto_create_tables: bool = Field(default=True, alias="AUTO_CREATE_TABLES")
 
     @property
     def cors_origins(self) -> list[str]:

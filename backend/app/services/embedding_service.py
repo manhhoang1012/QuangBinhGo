@@ -1,12 +1,12 @@
 from functools import lru_cache
 
-from sentence_transformers import SentenceTransformer
-
 from app.core.config import settings
 
 
 @lru_cache
-def get_embedding_model() -> SentenceTransformer:
+def get_embedding_model():
+    from sentence_transformers import SentenceTransformer
+
     return SentenceTransformer(settings.sentence_transformer_model)
 
 

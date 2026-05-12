@@ -136,6 +136,9 @@ class ReviewPostService:
         if not self.embedding_service or not self.vector_search_service:
             return
 
-        text = f"{post.title}\n\n{post.content}"
-        embedding = self.embedding_service.embed_text(text)
-        self.vector_search_service.upsert_review_post(post=post, embedding=embedding)
+        try:
+            text = f"{post.title}\n\n{post.content}"
+            embedding = self.embedding_service.embed_text(text)
+            self.vector_search_service.upsert_review_post(post=post, embedding=embedding)
+        except Exception:
+            return
