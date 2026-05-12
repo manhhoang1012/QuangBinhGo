@@ -1,16 +1,119 @@
+import { ArrowRight, MapPin, MessageCircle, Sparkles } from "lucide-react";
+import { Link } from "react-router-dom";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { places, posts, stats } from "@/lib/mockData";
+
 export function HomePage() {
   return (
-    <section className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 py-16">
-      <p className="text-sm font-medium uppercase tracking-wide text-accent">
-        QuangBinhGo
-      </p>
-      <h1 className="mt-4 max-w-3xl text-4xl font-semibold text-foreground sm:text-6xl">
-        Discover caves, coasts, culture, and community in Quang Binh.
-      </h1>
-      <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">
-        The product foundation is ready for tourism content, reviews, social
-        interactions, image uploads, semantic search, and AI itinerary planning.
-      </p>
-    </section>
+    <>
+      <section className="relative min-h-[680px] overflow-hidden">
+        <img
+          alt="Quang Binh limestone landscape"
+          className="absolute inset-0 h-full w-full object-cover"
+          src="https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1800&q=85"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/35 to-transparent" />
+        <div className="relative mx-auto flex min-h-[680px] max-w-7xl flex-col justify-center px-4 pb-20 pt-16 sm:px-6 lg:px-8">
+          <Badge className="w-fit bg-white/15 text-white backdrop-blur">Quang Binh travel community</Badge>
+          <h1 className="mt-5 max-w-4xl text-5xl font-semibold leading-tight text-white sm:text-7xl">
+            Caves, coastlines, and local stories in one trip.
+          </h1>
+          <p className="mt-6 max-w-2xl text-lg leading-8 text-white/85">
+            Plan meaningful days around Phong Nha, Dong Hoi, Nhat Le, and hidden local favorites with real traveler reviews.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link to="/places">
+              <Button className="gap-2" variant="secondary">
+                Explore places
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Link to="/community">
+              <Button className="bg-white/10 text-white hover:bg-white/20" variant="ghost">
+                Open community
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {stats.map((item) => (
+            <Card key={item.label}>
+              <CardContent className="pt-5">
+                <p className="text-3xl font-semibold">{item.value}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{item.label}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
+        <div className="flex items-end justify-between gap-6">
+          <div>
+            <p className="text-sm font-medium uppercase tracking-wide text-accent">Featured places</p>
+            <h2 className="mt-2 text-3xl font-semibold">Start with traveler favorites</h2>
+          </div>
+          <Link className="hidden text-sm font-medium text-primary hover:underline sm:block" to="/places">
+            View all
+          </Link>
+        </div>
+        <div className="mt-6 grid gap-5 md:grid-cols-3">
+          {places.slice(0, 3).map((place) => (
+            <Link key={place.id} to={`/places/${place.id}`}>
+              <Card className="h-full overflow-hidden transition-transform hover:-translate-y-1">
+                <img alt={place.name} className="h-56 w-full object-cover" src={place.image} />
+                <CardContent className="pt-5">
+                  <Badge>{place.category}</Badge>
+                  <h3 className="mt-4 text-xl font-semibold">{place.name}</h3>
+                  <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">{place.description}</p>
+                  <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4" />
+                    {place.address}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="bg-muted/50 py-16">
+        <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:px-8">
+          <div>
+            <p className="flex items-center gap-2 text-sm font-medium uppercase tracking-wide text-accent">
+              <MessageCircle className="h-4 w-4" />
+              Community pulse
+            </p>
+            <h2 className="mt-2 text-3xl font-semibold">Fresh notes from recent trips</h2>
+            <p className="mt-4 text-muted-foreground">
+              See what travelers loved, saved, and recommended before you build your itinerary.
+            </p>
+          </div>
+          <div className="grid gap-4">
+            {posts.slice(0, 2).map((post) => (
+              <Card key={post.id}>
+                <CardContent className="flex gap-4 pt-5">
+                  <img alt={post.title} className="h-24 w-24 rounded-md object-cover" src={post.image} />
+                  <div>
+                    <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Sparkles className="h-4 w-4 text-secondary" />
+                      {post.place} - {post.time}
+                    </p>
+                    <h3 className="mt-2 font-semibold">{post.title}</h3>
+                    <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{post.content}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+    </>
   );
 }
