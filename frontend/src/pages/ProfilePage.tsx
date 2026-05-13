@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Bookmark, Heart, MapPin, PenLine } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Bookmark, Camera, Heart, MapPin, PenLine } from "lucide-react";
 import { Navigate } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { authStorage, type ReviewPost, type User } from "@/services/api";
 import { getCommunityFeed, getSavedPostIds } from "@/services/postApi";
+import { uploadImage } from "@/services/uploadApi";
 import {
   changePassword,
   getCurrentProfile,
@@ -28,12 +29,16 @@ const emptyProfile: UpdateProfilePayload = {
 };
 
 export function ProfilePage() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [user, setUser] = useState<User | null>(null);
   const [form, setForm] = useState<UpdateProfilePayload>(emptyProfile);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [posts, setPosts] = useState<ReviewPost[]>([]);
   const [savedCount, setSavedCount] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [passwordForm, setPasswordForm] = useState({
@@ -66,22 +71,56 @@ export function ProfilePage() {
     }
   }, [token]);
 
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    };
+  }, [avatarPreview]);
+
   if (!token) {
     return <Navigate replace to="/login" />;
   }
 
   const handleProfileSave = async () => {
+    setIsSaving(true);
     setError(null);
     setSuccess(null);
+
     try {
-      const updatedUser = await updateCurrentProfile(normalizeProfilePayload(form));
+      let avatarUrl = form.avatar_url;
+      if (avatarFile) {
+        avatarUrl = await uploadImage(avatarFile);
+      }
+
+      const updatedUser = await updateCurrentProfile(
+        normalizeProfilePayload({ ...form, avatar_url: avatarUrl }),
+      );
       setUser(updatedUser);
       setForm(profileToForm(updatedUser));
+      setAvatarFile(null);
+      setAvatarPreview(null);
       setIsEditing(false);
       setSuccess("Profile updated successfully.");
     } catch {
-      setError("Could not update profile. Email may already be in use.");
+      setError("Could not update profile. Check your fields and Cloudinary upload configuration.");
+    } finally {
+      setIsSaving(false);
     }
+  };
+
+  const handleCancelEdit = () => {
+    if (user) setForm(profileToForm(user));
+    setAvatarFile(null);
+    setAvatarPreview(null);
+    setError(null);
+    setIsEditing(false);
+  };
+
+  const handleAvatarSelect = (file: File | undefined) => {
+    if (!file) return;
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
   };
 
   const handlePasswordChange = async () => {
@@ -100,32 +139,59 @@ export function ProfilePage() {
     return <section className="mx-auto max-w-6xl px-4 py-10 text-muted-foreground">Loading profile...</section>;
   }
 
+  const displayAvatar = avatarPreview || form.avatar_url || user?.avatar_url;
+
   return (
     <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
       {error && <div className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">{error}</div>}
       {success && <div className="mb-6 rounded-lg border bg-accent/10 p-4 text-sm text-accent">{success}</div>}
 
-      <div className="rounded-lg border bg-muted/40 p-6 sm:flex sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-primary text-2xl font-semibold text-primary-foreground">
-            {user?.avatar_url ? (
-              <img alt={user.full_name} className="h-full w-full object-cover" src={user.avatar_url} />
-            ) : (
-              initials(user?.full_name)
+      <div className="overflow-hidden rounded-lg border bg-muted/40">
+        <div className="h-32 bg-primary/15" />
+        <div className="px-6 pb-6">
+          <div className="-mt-14 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+              <button
+                className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-4 border-background bg-primary text-3xl font-semibold text-primary-foreground shadow-sm"
+                disabled={!isEditing}
+                onClick={() => fileInputRef.current?.click()}
+                type="button"
+              >
+                {displayAvatar ? (
+                  <img alt={user?.full_name ?? "Profile avatar"} className="h-full w-full object-cover" src={displayAvatar} />
+                ) : (
+                  initials(user?.full_name)
+                )}
+                {isEditing && (
+                  <span className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-black/55 py-1 text-xs text-white">
+                    <Camera className="mr-1 h-3 w-3" />
+                    Upload
+                  </span>
+                )}
+              </button>
+              <input
+                accept="image/*"
+                className="hidden"
+                onChange={(event) => handleAvatarSelect(event.target.files?.[0])}
+                ref={fileInputRef}
+                type="file"
+              />
+              <div>
+                <h1 className="text-3xl font-semibold">{user?.full_name}</h1>
+                <p className="mt-1 flex items-center gap-2 text-muted-foreground">
+                  <MapPin className="h-4 w-4" />
+                  {user?.location || user?.email}
+                </p>
+              </div>
+            </div>
+            {!isEditing && (
+              <Button className="gap-2" onClick={() => setIsEditing(true)} variant="outline">
+                <PenLine className="h-4 w-4" />
+                Edit profile
+              </Button>
             )}
           </div>
-          <div>
-            <h1 className="text-3xl font-semibold">{user?.full_name}</h1>
-            <p className="mt-1 flex items-center gap-2 text-muted-foreground">
-              <MapPin className="h-4 w-4" />
-              {user?.location || user?.email}
-            </p>
-          </div>
         </div>
-        <Button className="mt-5 gap-2 sm:mt-0" onClick={() => setIsEditing(true)} variant="outline">
-          <PenLine className="h-4 w-4" />
-          Edit profile
-        </Button>
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
@@ -137,15 +203,46 @@ export function ProfilePage() {
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Profile information</CardTitle>
+            <CardTitle>{isEditing ? "Edit profile" : "Profile information"}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <ProfileRow label="Email" value={user?.email} />
-            <ProfileRow label="Bio" value={user?.bio} />
-            <ProfileRow label="Gender" value={formatGender(user?.gender)} />
-            <ProfileRow label="Date of birth" value={user?.date_of_birth} />
-            <ProfileRow label="Location" value={user?.location} />
-            <ProfileRow label="Phone" value={user?.phone} />
+          <CardContent>
+            {isEditing ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                <Input onChange={(event) => setFormValue("full_name", event.target.value)} placeholder="Full name" value={form.full_name ?? ""} />
+                <Input onChange={(event) => setFormValue("email", event.target.value)} placeholder="Email" value={form.email ?? ""} />
+                <Input onChange={(event) => setFormValue("date_of_birth", event.target.value)} type="date" value={form.date_of_birth ?? ""} />
+                <select
+                  className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onChange={(event) => setFormValue("gender", event.target.value)}
+                  value={form.gender ?? "prefer_not_to_say"}
+                >
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                  <option value="prefer_not_to_say">Prefer not to say</option>
+                </select>
+                <Input onChange={(event) => setFormValue("location", event.target.value)} placeholder="Location" value={form.location ?? ""} />
+                <Input onChange={(event) => setFormValue("phone", event.target.value)} placeholder="Phone" value={form.phone ?? ""} />
+                <Input onChange={(event) => setFormValue("avatar_url", event.target.value)} placeholder="Avatar URL or upload an image" value={form.avatar_url ?? ""} />
+                <Button onClick={() => fileInputRef.current?.click()} type="button" variant="outline">Upload avatar</Button>
+                <Textarea className="md:col-span-2" onChange={(event) => setFormValue("bio", event.target.value)} placeholder="Bio" value={form.bio ?? ""} />
+                <div className="flex gap-2 md:col-span-2">
+                  <Button disabled={isSaving} onClick={() => void handleProfileSave()}>
+                    {isSaving ? "Saving..." : "Save changes"}
+                  </Button>
+                  <Button disabled={isSaving} onClick={handleCancelEdit} variant="outline">Cancel</Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3 text-sm">
+                <ProfileRow label="Email" value={user?.email} />
+                <ProfileRow label="Bio" value={user?.bio} />
+                <ProfileRow label="Gender" value={formatGender(user?.gender)} />
+                <ProfileRow label="Date of birth" value={user?.date_of_birth} />
+                <ProfileRow label="Location" value={user?.location} />
+                <ProfileRow label="Phone" value={user?.phone} />
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -176,45 +273,6 @@ export function ProfilePage() {
           </CardContent>
         </Card>
       </div>
-
-      {isEditing && (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Edit profile</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            <Input onChange={(event) => setFormValue("full_name", event.target.value)} placeholder="Full name" value={form.full_name ?? ""} />
-            <Input onChange={(event) => setFormValue("email", event.target.value)} placeholder="Email" value={form.email ?? ""} />
-            <Input onChange={(event) => setFormValue("avatar_url", event.target.value)} placeholder="Avatar URL" value={form.avatar_url ?? ""} />
-            <Input onChange={(event) => setFormValue("date_of_birth", event.target.value)} type="date" value={form.date_of_birth ?? ""} />
-            <select
-              className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              onChange={(event) => setFormValue("gender", event.target.value)}
-              value={form.gender ?? "prefer_not_to_say"}
-            >
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-              <option value="prefer_not_to_say">Prefer not to say</option>
-            </select>
-            <Input onChange={(event) => setFormValue("location", event.target.value)} placeholder="Location" value={form.location ?? ""} />
-            <Input onChange={(event) => setFormValue("phone", event.target.value)} placeholder="Phone" value={form.phone ?? ""} />
-            <Textarea className="md:col-span-2" onChange={(event) => setFormValue("bio", event.target.value)} placeholder="Bio" value={form.bio ?? ""} />
-            <div className="flex gap-2 md:col-span-2">
-              <Button onClick={() => void handleProfileSave()}>Save changes</Button>
-              <Button
-                onClick={() => {
-                  if (user) setForm(profileToForm(user));
-                  setIsEditing(false);
-                }}
-                variant="outline"
-              >
-                Cancel
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       <h2 className="mt-10 text-2xl font-semibold">Recent activity</h2>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
