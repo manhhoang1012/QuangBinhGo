@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type Place, type ReviewPost } from "@/services/api";
 import { getAdminOverview } from "@/services/adminApi";
+import { deletePlace } from "@/services/placeApi";
 
 export function AdminDashboardPage() {
   const [places, setPlaces] = useState<Place[]>([]);
@@ -13,13 +14,27 @@ export function AdminDashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void getAdminOverview()
+    void loadOverview();
+  }, []);
+
+  const loadOverview = async () => {
+    await getAdminOverview()
       .then((overview) => {
         setPlaces(overview.places);
         setPosts(overview.posts);
       })
       .catch(() => setError("Could not load admin overview. Sign in as an admin for protected actions."));
-  }, []);
+  };
+
+  const handleDeletePlace = async (placeId: number) => {
+    setError(null);
+    try {
+      await deletePlace(placeId);
+      await loadOverview();
+    } catch {
+      setError("Could not delete place. Sign in as an admin and try again.");
+    }
+  };
 
   const metrics = [
     { label: "Total places", value: String(places.length), icon: MapPinned },
@@ -68,7 +83,7 @@ export function AdminDashboardPage() {
                   <p className="font-medium">{place.name}</p>
                   <p className="text-sm text-muted-foreground">{place.category} - {place.address}</p>
                 </div>
-                <Button variant="outline">Edit</Button>
+                <Button onClick={() => void handleDeletePlace(place.id)} variant="outline">Delete</Button>
               </div>
             ))}
           </CardContent>

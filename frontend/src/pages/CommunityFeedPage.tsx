@@ -5,14 +5,29 @@ import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { type ReviewPost } from "@/services/api";
-import { getCommunityFeed, likePost, savePost, type FeedSort } from "@/services/postApi";
+import { Input } from "@/components/ui/input";
+import { type Comment, type ReviewPost } from "@/services/api";
+import { createComment, getComments } from "@/services/commentApi";
+import {
+  getCommunityFeed,
+  getLikedPostIds,
+  getSavedPostIds,
+  likePost,
+  savePost,
+  type FeedSort,
+  unlikePost,
+  unsavePost,
+} from "@/services/postApi";
 
 export function CommunityFeedPage() {
   const [posts, setPosts] = useState<ReviewPost[]>([]);
   const [sort, setSort] = useState<FeedSort>("latest");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [commentsByPost, setCommentsByPost] = useState<Record<number, Comment[]>>({});
+  const [commentTextByPost, setCommentTextByPost] = useState<Record<number, string>>({});
+  const [likedPostIds, setLikedPostIds] = useState<number[]>([]);
+  const [savedPostIds, setSavedPostIds] = useState<number[]>([]);
 
   useEffect(() => {
     const loadFeed = async () => {
@@ -20,6 +35,8 @@ export function CommunityFeedPage() {
       setError(null);
       try {
         setPosts(await getCommunityFeed(sort));
+        setLikedPostIds(getLikedPostIds());
+        setSavedPostIds(getSavedPostIds());
       } catch {
         setError("Could not load the community feed.");
       } finally {
@@ -30,21 +47,57 @@ export function CommunityFeedPage() {
     void loadFeed();
   }, [sort]);
 
-  const handleLike = async (postId: number) => {
+  const handleLikeToggle = async (postId: number) => {
     try {
-      await likePost(postId);
+      if (likedPostIds.includes(postId)) {
+        await unlikePost(postId);
+      } else {
+        await likePost(postId);
+      }
       setPosts(await getCommunityFeed(sort));
+      setLikedPostIds(getLikedPostIds());
     } catch {
       setError("Please sign in before liking posts.");
     }
   };
 
-  const handleSave = async (postId: number) => {
+  const handleSaveToggle = async (postId: number) => {
     try {
-      await savePost(postId);
+      if (savedPostIds.includes(postId)) {
+        await unsavePost(postId);
+      } else {
+        await savePost(postId);
+      }
       setPosts(await getCommunityFeed(sort));
+      setSavedPostIds(getSavedPostIds());
     } catch {
       setError("Please sign in before saving posts.");
+    }
+  };
+
+  const handleLoadComments = async (postId: number) => {
+    try {
+      setCommentsByPost((current) => ({ ...current, [postId]: current[postId] ?? [] }));
+      const comments = await getComments(postId);
+      setCommentsByPost((current) => ({ ...current, [postId]: comments }));
+    } catch {
+      setError("Could not load comments.");
+    }
+  };
+
+  const handleCreateComment = async (postId: number) => {
+    const content = commentTextByPost[postId]?.trim();
+    if (!content) {
+      return;
+    }
+
+    try {
+      await createComment(postId, content);
+      setCommentTextByPost((current) => ({ ...current, [postId]: "" }));
+      await handleLoadComments(postId);
+      setPosts(await getCommunityFeed(sort));
+    } catch {
+      setError("Please sign in before commenting.");
     }
   };
 
@@ -82,10 +135,35 @@ export function CommunityFeedPage() {
               <h2 className="mt-2 text-2xl font-semibold">{post.title}</h2>
               <p className="mt-3 leading-7 text-muted-foreground">{post.content}</p>
               <div className="mt-5 flex flex-wrap gap-3 text-sm text-muted-foreground">
-                <button className="flex items-center gap-1.5" onClick={() => void handleLike(post.id)}><Heart className="h-4 w-4" />{post.likes_count}</button>
-                <span className="flex items-center gap-1.5"><MessageCircle className="h-4 w-4" />{post.comments_count}</span>
-                <button className="flex items-center gap-1.5" onClick={() => void handleSave(post.id)}><Bookmark className="h-4 w-4" />{post.saves_count}</button>
+                <button className="flex items-center gap-1.5" onClick={() => void handleLikeToggle(post.id)}>
+                  <Heart className={`h-4 w-4 ${likedPostIds.includes(post.id) ? "fill-destructive text-destructive" : ""}`} />
+                  {post.likes_count}
+                </button>
+                <button className="flex items-center gap-1.5" onClick={() => void handleLoadComments(post.id)}><MessageCircle className="h-4 w-4" />{post.comments_count}</button>
+                <button className="flex items-center gap-1.5" onClick={() => void handleSaveToggle(post.id)}>
+                  <Bookmark className={`h-4 w-4 ${savedPostIds.includes(post.id) ? "fill-primary text-primary" : ""}`} />
+                  {post.saves_count}
+                </button>
               </div>
+              {commentsByPost[post.id] && (
+                <div className="mt-5 space-y-3 border-t pt-4">
+                  {commentsByPost[post.id].length === 0 && <p className="text-sm text-muted-foreground">No comments yet.</p>}
+                  {commentsByPost[post.id].map((comment) => (
+                    <div key={comment.id} className="rounded-md bg-muted/50 p-3 text-sm">
+                      <p className="font-medium">{comment.author.full_name}</p>
+                      <p className="mt-1 text-muted-foreground">{comment.content}</p>
+                    </div>
+                  ))}
+                  <div className="flex gap-2">
+                    <Input
+                      onChange={(event) => setCommentTextByPost((current) => ({ ...current, [post.id]: event.target.value }))}
+                      placeholder="Write a comment"
+                      value={commentTextByPost[post.id] ?? ""}
+                    />
+                    <Button onClick={() => void handleCreateComment(post.id)}>Post</Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
           ))}
