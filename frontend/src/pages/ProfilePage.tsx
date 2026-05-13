@@ -32,13 +32,13 @@ export function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [user, setUser] = useState<User | null>(null);
   const [form, setForm] = useState<UpdateProfilePayload>(emptyProfile);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [posts, setPosts] = useState<ReviewPost[]>([]);
   const [savedCount, setSavedCount] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [passwordForm, setPasswordForm] = useState({
@@ -73,7 +73,7 @@ export function ProfilePage() {
 
   useEffect(() => {
     return () => {
-      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+      if (avatarPreview?.startsWith("blob:")) URL.revokeObjectURL(avatarPreview);
     };
   }, [avatarPreview]);
 
@@ -87,22 +87,17 @@ export function ProfilePage() {
     setSuccess(null);
 
     try {
-      let avatarUrl = form.avatar_url;
-      if (avatarFile) {
-        avatarUrl = await uploadImage(avatarFile);
-      }
-
       const updatedUser = await updateCurrentProfile(
-        normalizeProfilePayload({ ...form, avatar_url: avatarUrl }),
+        normalizeProfilePayload(form),
       );
       setUser(updatedUser);
       setForm(profileToForm(updatedUser));
-      setAvatarFile(null);
       setAvatarPreview(null);
       setIsEditing(false);
       setSuccess("Profile updated successfully.");
-    } catch {
-      setError("Could not update profile. Check your fields and Cloudinary upload configuration.");
+    } catch (saveError) {
+      console.error("Profile update error:", saveError);
+      setError(saveError instanceof Error ? saveError.message : "Could not update profile.");
     } finally {
       setIsSaving(false);
     }
@@ -110,17 +105,34 @@ export function ProfilePage() {
 
   const handleCancelEdit = () => {
     if (user) setForm(profileToForm(user));
-    setAvatarFile(null);
+    if (avatarPreview?.startsWith("blob:")) URL.revokeObjectURL(avatarPreview);
     setAvatarPreview(null);
     setError(null);
     setIsEditing(false);
   };
 
-  const handleAvatarSelect = (file: File | undefined) => {
+  const handleAvatarSelect = async (file: File | undefined) => {
     if (!file) return;
     if (avatarPreview) URL.revokeObjectURL(avatarPreview);
-    setAvatarFile(file);
-    setAvatarPreview(URL.createObjectURL(file));
+
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarPreview(previewUrl);
+    setIsUploadingAvatar(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const uploadedUrl = await uploadImage(file);
+      URL.revokeObjectURL(previewUrl);
+      setForm((current) => ({ ...current, avatar_url: uploadedUrl }));
+      setAvatarPreview(uploadedUrl);
+      setSuccess("Avatar uploaded. Save profile to apply it.");
+    } catch (uploadError) {
+      console.error("Avatar upload error:", uploadError);
+      setError(uploadError instanceof Error ? uploadError.message : "Avatar upload failed.");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
   };
 
   const handlePasswordChange = async () => {
@@ -172,7 +184,7 @@ export function ProfilePage() {
               <input
                 accept="image/*"
                 className="hidden"
-                onChange={(event) => handleAvatarSelect(event.target.files?.[0])}
+                onChange={(event) => void handleAvatarSelect(event.target.files?.[0])}
                 ref={fileInputRef}
                 type="file"
               />
@@ -223,14 +235,18 @@ export function ProfilePage() {
                 </select>
                 <Input onChange={(event) => setFormValue("location", event.target.value)} placeholder="Location" value={form.location ?? ""} />
                 <Input onChange={(event) => setFormValue("phone", event.target.value)} placeholder="Phone" value={form.phone ?? ""} />
-                <Input onChange={(event) => setFormValue("avatar_url", event.target.value)} placeholder="Avatar URL or upload an image" value={form.avatar_url ?? ""} />
-                <Button onClick={() => fileInputRef.current?.click()} type="button" variant="outline">Upload avatar</Button>
+                <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                  {isUploadingAvatar ? "Uploading avatar..." : form.avatar_url ? "Avatar uploaded and ready to save." : "No avatar uploaded yet."}
+                </div>
+                <Button disabled={isUploadingAvatar || isSaving} onClick={() => fileInputRef.current?.click()} type="button" variant="outline">
+                  {isUploadingAvatar ? "Uploading..." : "Upload avatar"}
+                </Button>
                 <Textarea className="md:col-span-2" onChange={(event) => setFormValue("bio", event.target.value)} placeholder="Bio" value={form.bio ?? ""} />
                 <div className="flex gap-2 md:col-span-2">
-                  <Button disabled={isSaving} onClick={() => void handleProfileSave()}>
+                  <Button disabled={isSaving || isUploadingAvatar} onClick={() => void handleProfileSave()}>
                     {isSaving ? "Saving..." : "Save changes"}
                   </Button>
-                  <Button disabled={isSaving} onClick={handleCancelEdit} variant="outline">Cancel</Button>
+                  <Button disabled={isSaving || isUploadingAvatar} onClick={handleCancelEdit} variant="outline">Cancel</Button>
                 </div>
               </div>
             ) : (
