@@ -1,20 +1,52 @@
+import { useEffect, useState } from "react";
 import { CalendarDays, Heart, MapPin, Star } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { places, posts } from "@/lib/mockData";
+import { type Place, type ReviewPost } from "@/services/api";
+import { getPlace } from "@/services/placeApi";
+import { getCommunityFeed } from "@/services/postApi";
 
 export function PlaceDetailPage() {
   const { placeId } = useParams();
-  const place = places.find((item) => item.id === Number(placeId)) ?? places[0];
-  const relatedPosts = posts.filter((post) => post.place === place.name);
+  const [place, setPlace] = useState<Place | null>(null);
+  const [relatedPosts, setRelatedPosts] = useState<ReviewPost[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadPlace = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const placeData = await getPlace(Number(placeId));
+        setPlace(placeData);
+        const feed = await getCommunityFeed("latest");
+        setRelatedPosts(feed.filter((post) => post.place_id === placeData.id));
+      } catch {
+        setError("Could not load this place.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadPlace();
+  }, [placeId]);
+
+  if (isLoading) {
+    return <div className="mx-auto max-w-7xl px-4 py-10 text-muted-foreground">Loading place...</div>;
+  }
+
+  if (error || !place) {
+    return <div className="mx-auto max-w-7xl px-4 py-10 text-destructive">{error ?? "Place not found."}</div>;
+  }
 
   return (
     <section>
       <div className="relative h-[460px] overflow-hidden">
-        <img alt={place.name} className="h-full w-full object-cover" src={place.image} />
+        <img alt={place.name} className="h-full w-full object-cover" src={place.images[0] ?? "https://placehold.co/1200x800?text=QuangBinhGo"} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 mx-auto max-w-7xl px-4 py-10 text-white sm:px-6 lg:px-8">
           <Badge className="bg-white/15 text-white backdrop-blur">{place.category}</Badge>
@@ -31,7 +63,7 @@ export function PlaceDetailPage() {
           <div className="flex flex-wrap gap-3">
             <Badge className="bg-secondary text-secondary-foreground">
               <Star className="mr-1 h-3.5 w-3.5 fill-current" />
-              {place.rating} rating
+              {Number(place.rating_avg).toFixed(1)} rating
             </Badge>
             <Badge>Best for half-day trips</Badge>
           </div>
@@ -40,10 +72,15 @@ export function PlaceDetailPage() {
 
           <h2 className="mt-10 text-2xl font-semibold">Traveler notes</h2>
           <div className="mt-4 grid gap-4">
-            {(relatedPosts.length ? relatedPosts : posts.slice(0, 2)).map((post) => (
+            {relatedPosts.length === 0 && (
+              <Card>
+                <CardContent className="pt-5 text-sm text-muted-foreground">No traveler notes for this place yet.</CardContent>
+              </Card>
+            )}
+            {relatedPosts.map((post) => (
               <Card key={post.id}>
                 <CardContent className="pt-5">
-                  <p className="text-sm text-muted-foreground">{post.author} - {post.time}</p>
+                  <p className="text-sm text-muted-foreground">{post.author.full_name} - {new Date(post.created_at).toLocaleDateString()}</p>
                   <h3 className="mt-2 font-semibold">{post.title}</h3>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">{post.content}</p>
                 </CardContent>

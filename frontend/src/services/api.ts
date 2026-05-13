@@ -7,6 +7,35 @@ export const api = axios.create({
   },
 });
 
+export const authStorage = {
+  getToken() {
+    return localStorage.getItem("access_token");
+  },
+  setToken(token: string) {
+    localStorage.setItem("access_token", token);
+  },
+  clear() {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("auth_user");
+  },
+};
+
+api.interceptors.request.use((config) => {
+  const token = authStorage.getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export interface User {
+  id: number;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  is_admin: boolean;
+}
+
 export interface Place {
   id: number;
   name: string;
@@ -19,12 +48,24 @@ export interface Place {
   rating_avg: string | number;
 }
 
-interface GetPlacesParams {
-  category?: string;
-  search?: string;
+export interface ReviewPost {
+  id: number;
+  title: string;
+  content: string;
+  place_id: number;
+  images: string[];
+  author: User;
+  place: Place;
+  likes_count: number;
+  comments_count: number;
+  saves_count: number;
+  created_at: string;
+  updated_at: string;
 }
 
-export async function getPlaces(params: GetPlacesParams = {}) {
-  const response = await api.get<Place[]>("/places", { params });
-  return response.data;
+export interface Comment {
+  id: number;
+  content: string;
+  author: User;
+  created_at: string;
 }

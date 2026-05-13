@@ -1,12 +1,30 @@
+import { useEffect, useState } from "react";
 import { ArrowRight, MapPin, MessageCircle, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { places, posts, stats } from "@/lib/mockData";
+import { type Place, type ReviewPost } from "@/services/api";
+import { getPlaces } from "@/services/placeApi";
+import { getCommunityFeed } from "@/services/postApi";
 
 export function HomePage() {
+  const [places, setPlaces] = useState<Place[]>([]);
+  const [posts, setPosts] = useState<ReviewPost[]>([]);
+
+  useEffect(() => {
+    void getPlaces().then(setPlaces).catch(() => setPlaces([]));
+    void getCommunityFeed("latest").then(setPosts).catch(() => setPosts([]));
+  }, []);
+
+  const stats = [
+    { label: "Places", value: String(places.length) },
+    { label: "Reviews", value: String(posts.length) },
+    { label: "Travelers", value: "-" },
+    { label: "Saved trips", value: "-" },
+  ];
+
   return (
     <>
       <section className="relative min-h-[680px] overflow-hidden">
@@ -67,7 +85,7 @@ export function HomePage() {
           {places.slice(0, 3).map((place) => (
             <Link key={place.id} to={`/places/${place.id}`}>
               <Card className="h-full overflow-hidden transition-transform hover:-translate-y-1">
-                <img alt={place.name} className="h-56 w-full object-cover" src={place.image} />
+                  <img alt={place.name} className="h-56 w-full object-cover" src={place.images[0] ?? "https://placehold.co/1200x800?text=QuangBinhGo"} />
                 <CardContent className="pt-5">
                   <Badge>{place.category}</Badge>
                   <h3 className="mt-4 text-xl font-semibold">{place.name}</h3>
@@ -96,14 +114,19 @@ export function HomePage() {
             </p>
           </div>
           <div className="grid gap-4">
+            {posts.length === 0 && (
+              <Card>
+                <CardContent className="pt-5 text-sm text-muted-foreground">No community posts yet.</CardContent>
+              </Card>
+            )}
             {posts.slice(0, 2).map((post) => (
               <Card key={post.id}>
                 <CardContent className="flex gap-4 pt-5">
-                  <img alt={post.title} className="h-24 w-24 rounded-md object-cover" src={post.image} />
+                  <img alt={post.title} className="h-24 w-24 rounded-md object-cover" src={post.images[0] ?? post.place.images[0] ?? "https://placehold.co/400x400?text=QuangBinhGo"} />
                   <div>
                     <p className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Sparkles className="h-4 w-4 text-secondary" />
-                      {post.place} - {post.time}
+                      {post.place.name} - {new Date(post.created_at).toLocaleDateString()}
                     </p>
                     <h3 className="mt-2 font-semibold">{post.title}</h3>
                     <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{post.content}</p>

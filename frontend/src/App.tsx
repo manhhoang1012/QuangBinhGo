@@ -2,6 +2,8 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
 import { RootLayout } from "@/layouts/RootLayout";
 import { AdminDashboardPage } from "@/pages/AdminDashboardPage";
+import { AiItineraryPage } from "@/pages/AiItineraryPage";
+import { AiSearchPage } from "@/pages/AiSearchPage";
 import { CommunityFeedPage } from "@/pages/CommunityFeedPage";
 import { CreatePostPage } from "@/pages/CreatePostPage";
 import { HomePage } from "@/pages/HomePage";
@@ -10,6 +12,7 @@ import { NotFoundPage } from "@/pages/NotFoundPage";
 import { PlaceDetailPage } from "@/pages/PlaceDetailPage";
 import { PlacesListPage } from "@/pages/PlacesListPage";
 import { ProfilePage } from "@/pages/ProfilePage";
+import { SavedPostsPage } from "@/pages/SavedPostsPage";
 
 const router = createBrowserRouter([
   {
@@ -39,6 +42,18 @@ const router = createBrowserRouter([
       {
         path: "profile",
         element: <ProfilePage />,
+      },
+      {
+        path: "saved",
+        element: <SavedPostsPage />,
+      },
+      {
+        path: "ai/search",
+        element: <AiSearchPage />,
+      },
+      {
+        path: "ai/itinerary",
+        element: <AiItineraryPage />,
       },
       {
         path: "login",

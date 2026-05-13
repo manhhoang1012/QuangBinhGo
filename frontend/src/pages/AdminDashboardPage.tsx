@@ -1,18 +1,33 @@
+import { useEffect, useState } from "react";
 import { BarChart3, MapPinned, MessageSquare, Users } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { places, posts } from "@/lib/mockData";
-
-const metrics = [
-  { label: "Total places", value: "128", icon: MapPinned },
-  { label: "Review posts", value: "2.4k", icon: MessageSquare },
-  { label: "Users", value: "18k", icon: Users },
-  { label: "Engagement", value: "74%", icon: BarChart3 },
-];
+import { type Place, type ReviewPost } from "@/services/api";
+import { getAdminOverview } from "@/services/adminApi";
 
 export function AdminDashboardPage() {
+  const [places, setPlaces] = useState<Place[]>([]);
+  const [posts, setPosts] = useState<ReviewPost[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void getAdminOverview()
+      .then((overview) => {
+        setPlaces(overview.places);
+        setPosts(overview.posts);
+      })
+      .catch(() => setError("Could not load admin overview. Sign in as an admin for protected actions."));
+  }, []);
+
+  const metrics = [
+    { label: "Total places", value: String(places.length), icon: MapPinned },
+    { label: "Review posts", value: String(posts.length), icon: MessageSquare },
+    { label: "Users", value: "-", icon: Users },
+    { label: "Engagement", value: "-", icon: BarChart3 },
+  ];
+
   return (
     <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -23,6 +38,7 @@ export function AdminDashboardPage() {
         </div>
         <Button>Add place</Button>
       </div>
+      {error && <div className="mt-6 rounded-lg border border-destructive/30 bg-destructive/10 p-5 text-sm text-destructive">{error}</div>}
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {metrics.map((metric) => {
@@ -66,7 +82,7 @@ export function AdminDashboardPage() {
               <div className="flex items-center justify-between gap-4 border-b pb-3 last:border-b-0 last:pb-0" key={post.id}>
                 <div>
                   <p className="font-medium">{post.title}</p>
-                  <p className="text-sm text-muted-foreground">{post.likes} likes - {post.comments} comments</p>
+                  <p className="text-sm text-muted-foreground">{post.likes_count} likes - {post.comments_count} comments</p>
                 </div>
                 <Button variant="outline">Review</Button>
               </div>

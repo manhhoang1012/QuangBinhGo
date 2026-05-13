@@ -5,7 +5,8 @@ import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { getPlaces, type Place } from "@/services/api";
+import { type Place } from "@/services/api";
+import { getPlaces } from "@/services/placeApi";
 
 const categories = ["All", "cave", "beach", "food", "resort", "historical", "nature"];
 const imageFallback = "https://placehold.co/1200x800?text=QuangBinhGo";

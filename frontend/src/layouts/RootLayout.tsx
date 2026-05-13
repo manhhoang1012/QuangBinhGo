@@ -7,6 +7,8 @@ const navItems = [
   { label: "Home", to: "/" },
   { label: "Places", to: "/places" },
   { label: "Community", to: "/community" },
+  { label: "Saved", to: "/saved" },
+  { label: "AI", to: "/ai/itinerary" },
   { label: "Profile", to: "/profile" },
   { label: "Admin", to: "/admin" },
 ];
