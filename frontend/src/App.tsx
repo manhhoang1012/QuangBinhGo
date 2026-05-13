@@ -1,5 +1,6 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
+import { ProtectedAdminRoute } from "@/components/ProtectedAdminRoute";
 import { RootLayout } from "@/layouts/RootLayout";
 import { AdminDashboardPage } from "@/pages/AdminDashboardPage";
 import { AiItineraryPage } from "@/pages/AiItineraryPage";
@@ -61,7 +62,11 @@ const router = createBrowserRouter([
       },
       {
         path: "admin",
-        element: <AdminDashboardPage />,
+        element: (
+          <ProtectedAdminRoute>
+            <AdminDashboardPage />
+          </ProtectedAdminRoute>
+        ),
       },
       {
         path: "*",

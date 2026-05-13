@@ -1,7 +1,10 @@
-import { Compass, Menu, Search } from "lucide-react";
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Compass, LogOut, Menu, Search, UserRound } from "lucide-react";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { type User } from "@/services/api";
+import { getStoredUser, logout } from "@/services/authApi";
 
 const navItems = [
   { label: "Home", to: "/" },
@@ -10,10 +13,28 @@ const navItems = [
   { label: "Saved", to: "/saved" },
   { label: "AI", to: "/ai/itinerary" },
   { label: "Profile", to: "/profile" },
-  { label: "Admin", to: "/admin" },
 ];
 
 export function RootLayout() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const syncUser = () => setUser(getStoredUser());
+    syncUser();
+    window.addEventListener("auth-change", syncUser);
+
+    return () => window.removeEventListener("auth-change", syncUser);
+  }, []);
+
+  const handleLogout = () => {
+    logout();
+    setUser(null);
+    setIsMenuOpen(false);
+    navigate("/login");
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
@@ -44,9 +65,52 @@ export function RootLayout() {
               <Search className="h-4 w-4" />
               Search
             </Button>
-            <Link to="/login">
-              <Button>Sign in</Button>
-            </Link>
+            {!user && (
+              <Link to="/login">
+                <Button>Sign in</Button>
+              </Link>
+            )}
+            {user && (
+              <div className="relative">
+                <Button
+                  className="h-10 w-10 rounded-full p-0"
+                  onClick={() => setIsMenuOpen((value) => !value)}
+                  variant="outline"
+                >
+                  {user.full_name
+                    .split(" ")
+                    .map((part) => part[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase() || <UserRound className="h-4 w-4" />}
+                </Button>
+                {isMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 rounded-md border bg-background p-1 shadow-lg">
+                    <Link
+                      className="block rounded-md px-3 py-2 text-sm hover:bg-muted"
+                      onClick={() => setIsMenuOpen(false)}
+                      to="/profile"
+                    >
+                      Profile
+                    </Link>
+                    <Link
+                      className="block rounded-md px-3 py-2 text-sm hover:bg-muted"
+                      onClick={() => setIsMenuOpen(false)}
+                      to="/saved"
+                    >
+                      Saved posts
+                    </Link>
+                    <button
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
+                      onClick={handleLogout}
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             <Button className="md:hidden" variant="ghost">
               <Menu className="h-5 w-5" />
             </Button>

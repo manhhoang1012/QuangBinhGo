@@ -15,6 +15,7 @@ interface AuthResponse {
 function persistAuth(response: AuthResponse) {
   authStorage.setToken(response.access_token);
   localStorage.setItem("auth_user", JSON.stringify(response.user));
+  window.dispatchEvent(new Event("auth-change"));
   return response;
 }
 
@@ -30,6 +31,7 @@ export async function register(payload: Required<AuthPayload>) {
 
 export function logout() {
   authStorage.clear();
+  window.dispatchEvent(new Event("auth-change"));
 }
 
 export function getStoredUser(): User | null {
