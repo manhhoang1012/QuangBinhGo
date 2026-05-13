@@ -12,7 +12,6 @@ const navItems = [
   { label: "Community", to: "/community" },
   { label: "Saved", to: "/saved" },
   { label: "AI", to: "/ai/itinerary" },
-  { label: "Profile", to: "/profile" },
 ];
 
 export function RootLayout() {
@@ -77,12 +76,16 @@ export function RootLayout() {
                   onClick={() => setIsMenuOpen((value) => !value)}
                   variant="outline"
                 >
-                  {user.full_name
-                    .split(" ")
-                    .map((part) => part[0])
-                    .join("")
-                    .slice(0, 2)
-                    .toUpperCase() || <UserRound className="h-4 w-4" />}
+                  {user.avatar_url ? (
+                    <img alt={user.full_name} className="h-full w-full rounded-full object-cover" src={user.avatar_url} />
+                  ) : (
+                    user.full_name
+                      .split(" ")
+                      .map((part) => part[0])
+                      .join("")
+                      .slice(0, 2)
+                      .toUpperCase() || <UserRound className="h-4 w-4" />
+                  )}
                 </Button>
                 {isMenuOpen && (
                   <div className="absolute right-0 mt-2 w-48 rounded-md border bg-background p-1 shadow-lg">

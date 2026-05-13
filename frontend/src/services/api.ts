@@ -34,6 +34,12 @@ export interface User {
   full_name: string;
   is_active: boolean;
   is_admin: boolean;
+  avatar_url?: string | null;
+  bio?: string | null;
+  date_of_birth?: string | null;
+  gender?: "male" | "female" | "other" | "prefer_not_to_say" | null;
+  location?: string | null;
+  phone?: string | null;
 }
 
 export interface Place {

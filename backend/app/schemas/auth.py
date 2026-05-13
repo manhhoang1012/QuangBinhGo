@@ -1,5 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field
 
+from app.schemas.user import UserRead
+
 
 class UserBase(BaseModel):
     email: EmailStr
@@ -8,14 +10,6 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str = Field(min_length=8, max_length=128)
-
-
-class UserRead(UserBase):
-    id: int
-    is_active: bool
-    is_admin: bool
-
-    model_config = {"from_attributes": True}
 
 
 class LoginRequest(BaseModel):
