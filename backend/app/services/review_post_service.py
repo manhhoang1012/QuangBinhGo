@@ -42,6 +42,17 @@ class ReviewPostService:
 
     def get_feed(self, *, sort: str = "latest", skip: int = 0, limit: int = 20) -> list[ReviewPostRead]:
         rows = self.review_post_repository.feed(sort=sort, skip=skip, limit=limit)
+        return self._rows_to_reads(rows)
+
+    def get_user_posts(self, *, user_id: int, skip: int = 0, limit: int = 20) -> list[ReviewPostRead]:
+        rows = self.review_post_repository.list_with_counts(user_id=user_id, skip=skip, limit=limit)
+        return self._rows_to_reads(rows)
+
+    def get_saved_posts(self, *, user_id: int, skip: int = 0, limit: int = 20) -> list[ReviewPostRead]:
+        rows = self.review_post_repository.list_with_counts(saved_by_user_id=user_id, skip=skip, limit=limit)
+        return self._rows_to_reads(rows)
+
+    def _rows_to_reads(self, rows) -> list[ReviewPostRead]:
         return [
             self.build_post_read(
                 post,

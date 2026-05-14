@@ -5,6 +5,7 @@ import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { type User } from "@/services/api";
 import { getStoredUser, logout } from "@/services/authApi";
+import { getCurrentProfile } from "@/services/userApi";
 
 const navItems = [
   { label: "Home", to: "/" },
@@ -22,13 +23,14 @@ export function RootLayout() {
   useEffect(() => {
     const syncUser = () => setUser(getStoredUser());
     syncUser();
+    void getCurrentProfile().then(setUser).catch(() => setUser(null));
     window.addEventListener("auth-change", syncUser);
 
     return () => window.removeEventListener("auth-change", syncUser);
   }, []);
 
   const handleLogout = () => {
-    logout();
+    void logout();
     setUser(null);
     setIsMenuOpen(false);
     navigate("/login");

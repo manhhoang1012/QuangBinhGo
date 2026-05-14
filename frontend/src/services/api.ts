@@ -31,15 +31,29 @@ api.interceptors.request.use((config) => {
 export interface User {
   id: number;
   email: string;
+  username?: string | null;
   full_name: string;
   is_active: boolean;
   is_admin: boolean;
+  role: "user" | "moderator" | "admin";
+  email_verified: boolean;
   avatar_url?: string | null;
+  cover_image_url?: string | null;
   bio?: string | null;
   date_of_birth?: string | null;
   gender?: "male" | "female" | "other" | "prefer_not_to_say" | null;
   location?: string | null;
   phone?: string | null;
+  phone_number?: string | null;
+  social_links?: {
+    facebook?: string | null;
+    instagram?: string | null;
+    tiktok?: string | null;
+    website?: string | null;
+  } | null;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
 }
 
 export interface Place {

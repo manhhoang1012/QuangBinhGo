@@ -5,11 +5,12 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { login, register } from "@/services/authApi";
+import { API_BASE_URL, login, register } from "@/services/authApi";
 
 export function LoginRegisterPage() {
   const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -21,7 +22,7 @@ export function LoginRegisterPage() {
     setError(null);
     try {
       if (mode === "register") {
-        await register({ email, password, full_name: fullName || "QuangBinhGo Traveler" });
+        await register({ email, password, username, full_name: fullName || "QuangBinhGo Traveler" });
       } else {
         await login({ email, password });
       }
@@ -31,6 +32,10 @@ export function LoginRegisterPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleOAuthLogin = (provider: "google" | "facebook") => {
+    window.location.href = `${API_BASE_URL}/auth/${provider}/login`;
   };
 
   return (
@@ -55,11 +60,20 @@ export function LoginRegisterPage() {
             <Button onClick={() => setMode("register")} variant={mode === "register" ? "secondary" : "outline"}>Register</Button>
           </div>
           {mode === "register" && <Input onChange={(event) => setFullName(event.target.value)} placeholder="Full name" value={fullName} />}
+          {mode === "register" && <Input onChange={(event) => setUsername(event.target.value)} placeholder="Username" value={username} />}
           <Input onChange={(event) => setEmail(event.target.value)} placeholder="Email" type="email" value={email} />
           <Input onChange={(event) => setPassword(event.target.value)} placeholder="Password" type="password" value={password} />
           <Button className="w-full" disabled={isLoading} onClick={() => void handleSubmit()}>
             {isLoading ? "Please wait..." : "Continue"}
           </Button>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Button onClick={() => handleOAuthLogin("google")} type="button" variant="outline">
+              Đăng nhập với Google
+            </Button>
+            <Button onClick={() => handleOAuthLogin("facebook")} type="button" variant="outline">
+              Đăng nhập với Facebook
+            </Button>
+          </div>
           <p className="text-center text-sm text-muted-foreground">
             Admin accounts can manage places from the dashboard.
           </p>

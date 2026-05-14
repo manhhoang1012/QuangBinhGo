@@ -34,6 +34,8 @@ def seed_admin() -> None:
             admin.hashed_password = get_password_hash(admin_password)
             admin.is_active = True
             admin.is_admin = True
+            admin.role = "admin"
+            admin.email_verified = True
             action = "updated"
         else:
             admin = User(
@@ -42,6 +44,8 @@ def seed_admin() -> None:
                 hashed_password=get_password_hash(admin_password),
                 is_active=True,
                 is_admin=True,
+                role="admin",
+                email_verified=True,
             )
             db.add(admin)
             action = "created"

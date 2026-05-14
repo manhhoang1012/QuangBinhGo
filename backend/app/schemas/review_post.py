@@ -2,8 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.schemas.auth import UserRead
 from app.schemas.place import PlaceRead
+from app.schemas.user import UserRead
 
 
 class ReviewPostCreate(BaseModel):
@@ -49,3 +49,14 @@ class PostInteractionResponse(BaseModel):
     saved: bool | None = None
     likes_count: int | None = None
     saves_count: int | None = None
+
+
+class PlaceReviewRead(BaseModel):
+    id: int
+    place: PlaceRead
+    rating: int
+    content: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}

@@ -2,30 +2,34 @@ import { useEffect, useState } from "react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { type ReviewPost } from "@/services/api";
-import { getCommunityFeed, getSavedPostIds } from "@/services/postApi";
+import { getMySavedPosts } from "@/services/userApi";
 
 export function SavedPostsPage() {
   const [posts, setPosts] = useState<ReviewPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadSaved = async () => {
-      const savedIds = getSavedPostIds();
-      const feed = await getCommunityFeed("latest");
-      setPosts(feed.filter((post) => savedIds.includes(post.id)));
+      setError(null);
+      setPosts(await getMySavedPosts());
       setIsLoading(false);
     };
 
-    void loadSaved().catch(() => setIsLoading(false));
+    void loadSaved().catch(() => {
+      setError("Could not load saved posts. Please sign in and try again.");
+      setIsLoading(false);
+    });
   }, []);
 
   return (
     <section className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
       <h1 className="text-4xl font-semibold">Saved posts</h1>
       {isLoading && <Card className="mt-8 h-48 animate-pulse bg-muted/50" />}
+      {error && <div className="mt-8 rounded-lg border border-destructive/30 bg-destructive/10 p-5 text-sm text-destructive">{error}</div>}
       {!isLoading && posts.length === 0 && (
         <div className="mt-8 rounded-lg border bg-muted/40 p-8 text-center text-muted-foreground">
-          Saved post listing is not available in the backend yet. Posts you save in this browser will appear here.
+          No saved posts yet.
         </div>
       )}
       <div className="mt-8 grid gap-4">

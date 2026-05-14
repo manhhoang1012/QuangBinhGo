@@ -1,8 +1,10 @@
+import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { authStorage } from "@/services/api";
-import { getStoredUser } from "@/services/authApi";
+import { type User } from "@/services/api";
+import { getCurrentProfile } from "@/services/userApi";
 
 interface ProtectedAdminRouteProps {
   children: React.ReactNode;
@@ -10,13 +12,27 @@ interface ProtectedAdminRouteProps {
 
 export function ProtectedAdminRoute({ children }: ProtectedAdminRouteProps) {
   const token = authStorage.getToken();
-  const user = getStoredUser();
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(Boolean(token));
 
-  if (!token || !user) {
+  useEffect(() => {
+    if (!token) return;
+    void getCurrentProfile().then(setUser).catch(() => setUser(null)).finally(() => setIsLoading(false));
+  }, [token]);
+
+  if (!token) {
     return <Navigate replace to="/login" />;
   }
 
-  if (!user.is_admin) {
+  if (isLoading) {
+    return <section className="mx-auto max-w-3xl px-4 py-16 text-muted-foreground">Checking access...</section>;
+  }
+
+  if (!user) {
+    return <Navigate replace to="/login" />;
+  }
+
+  if (user.role !== "admin") {
     return (
       <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
         <Card>

@@ -29,6 +29,13 @@ class Settings(BaseSettings):
     cloudinary_api_key: str = ""
     cloudinary_api_secret: str = ""
 
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    facebook_client_id: str = ""
+    facebook_client_secret: str = ""
+    frontend_url: str = "http://localhost:5173"
+    backend_url: str = "http://localhost:8000"
+
     pinecone_api_key: str = ""
     pinecone_index_name: str = "quangbinhgo-review-posts"
     sentence_transformer_model: str = "sentence-transformers/all-MiniLM-L6-v2"
@@ -41,7 +48,10 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    loaded_settings = Settings()
+    if loaded_settings.app_env.lower() in {"production", "prod"} and loaded_settings.secret_key == "change-me":
+        raise RuntimeError("JWT secret_key must be configured in production. Set SECRET_KEY in .env.")
+    return loaded_settings
 
 
 settings = get_settings()

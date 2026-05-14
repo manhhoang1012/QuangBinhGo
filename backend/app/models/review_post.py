@@ -46,3 +46,17 @@ class PostComment(TimestampMixin, Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
     author = relationship("User")
+
+
+class PlaceReview(TimestampMixin, Base):
+    __tablename__ = "place_reviews"
+    __table_args__ = (UniqueConstraint("place_id", "user_id", name="uq_place_reviews_place_user"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    place_id: Mapped[int] = mapped_column(ForeignKey("places.id", ondelete="CASCADE"), index=True, nullable=False)
+    rating: Mapped[int] = mapped_column(nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+
+    author = relationship("User")
+    place = relationship("Place")

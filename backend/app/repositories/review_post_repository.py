@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.review_post import PostComment, PostLike, PostSave, ReviewPost
+from app.models.review_post import PlaceReview, PostComment, PostLike, PostSave, ReviewPost
 from app.schemas.review_post import CommentCreate, ReviewPostCreate
 
 
@@ -30,6 +30,17 @@ class ReviewPostRepository:
         return self.db.scalar(statement)
 
     def feed(self, *, sort: str = "latest", skip: int = 0, limit: int = 20) -> Sequence[tuple[ReviewPost, int, int, int]]:
+        return self.list_with_counts(sort=sort, skip=skip, limit=limit)
+
+    def list_with_counts(
+        self,
+        *,
+        user_id: int | None = None,
+        saved_by_user_id: int | None = None,
+        sort: str = "latest",
+        skip: int = 0,
+        limit: int = 20,
+    ) -> Sequence[tuple[ReviewPost, int, int, int]]:
         likes_count = func.count(func.distinct(PostLike.id)).label("likes_count")
         comments_count = func.count(func.distinct(PostComment.id)).label("comments_count")
         saves_count = func.count(func.distinct(PostSave.id)).label("saves_count")
@@ -47,6 +58,12 @@ class ReviewPostRepository:
             .offset(skip)
             .limit(limit)
         )
+
+        if user_id is not None:
+            statement = statement.where(ReviewPost.user_id == user_id)
+
+        if saved_by_user_id is not None:
+            statement = statement.where(PostSave.user_id == saved_by_user_id)
 
         if sort == "popular":
             statement = statement.order_by(likes_count.desc(), comments_count.desc(), ReviewPost.created_at.desc())
@@ -150,3 +167,14 @@ class ReviewPostRepository:
 
     def count_saves(self, post_id: int) -> int:
         return self.db.scalar(select(func.count(PostSave.id)).where(PostSave.post_id == post_id)) or 0
+
+    def list_place_reviews_by_user(self, *, user_id: int, skip: int = 0, limit: int = 20) -> Sequence[PlaceReview]:
+        statement = (
+            select(PlaceReview)
+            .where(PlaceReview.user_id == user_id)
+            .options(selectinload(PlaceReview.place))
+            .order_by(PlaceReview.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        return self.db.scalars(statement).all()
