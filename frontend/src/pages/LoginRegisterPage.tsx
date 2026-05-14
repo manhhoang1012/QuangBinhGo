@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Compass } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,6 +63,13 @@ export function LoginRegisterPage() {
           {mode === "register" && <Input onChange={(event) => setUsername(event.target.value)} placeholder="Username" value={username} />}
           <Input onChange={(event) => setEmail(event.target.value)} placeholder="Email" type="email" value={email} />
           <Input onChange={(event) => setPassword(event.target.value)} placeholder="Password" type="password" value={password} />
+          {mode === "login" && (
+            <div className="text-right">
+              <Link className="text-sm font-medium text-primary hover:underline" to="/forgot-password">
+                Quên mật khẩu?
+              </Link>
+            </div>
+          )}
           <Button className="w-full" disabled={isLoading} onClick={() => void handleSubmit()}>
             {isLoading ? "Please wait..." : "Continue"}
           </Button>
