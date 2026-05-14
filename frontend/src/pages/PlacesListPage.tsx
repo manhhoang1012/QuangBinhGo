@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { type Place } from "@/services/api";
 import { getPlaces } from "@/services/placeApi";
 
-const categories = ["All", "cave", "beach", "food", "resort", "historical", "nature"];
+const categories = ["All", "cave", "beach", "nature", "historical", "food", "cultural", "resort"];
 const imageFallback = "https://placehold.co/1200x800?text=QuangBinhGo";
 
 export function PlacesListPage() {

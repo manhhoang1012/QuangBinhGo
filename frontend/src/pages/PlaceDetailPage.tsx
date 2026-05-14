@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CalendarDays, Heart, MapPin, Star } from "lucide-react";
+import { CalendarDays, Compass, Heart, MapPin, Star } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
@@ -69,6 +69,27 @@ export function PlaceDetailPage() {
           </div>
           <h2 className="mt-6 text-2xl font-semibold">Overview</h2>
           <p className="mt-3 max-w-3xl leading-8 text-muted-foreground">{place.description}</p>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <Card>
+              <CardContent className="flex items-center gap-3 pt-5">
+                <Compass className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Latitude</p>
+                  <p className="font-medium">{Number(place.latitude).toFixed(6)}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="flex items-center gap-3 pt-5">
+                <Compass className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Longitude</p>
+                  <p className="font-medium">{Number(place.longitude).toFixed(6)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           <h2 className="mt-10 text-2xl font-semibold">Traveler notes</h2>
           <div className="mt-4 grid gap-4">
