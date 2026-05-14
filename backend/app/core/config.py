@@ -36,6 +36,14 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
     backend_url: str = "http://localhost:8000"
 
+    email_provider: str = "dev"
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    smtp_from_name: str = "QuangBinhGo"
+
     pinecone_api_key: str = ""
     pinecone_index_name: str = "quangbinhgo-review-posts"
     sentence_transformer_model: str = "sentence-transformers/all-MiniLM-L6-v2"
