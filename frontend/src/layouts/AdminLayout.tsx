@@ -6,14 +6,14 @@ import { type User } from "@/services/api";
 import { logout } from "@/services/authApi";
 
 const adminNavItems = [
-  { label: "Dashboard", to: "/admin", icon: LayoutDashboard },
-  { label: "Users", to: "/admin/users", icon: Users },
-  { label: "Places", to: "/admin/places", icon: MapPinned },
-  { label: "Posts", to: "/admin/posts", icon: MessageSquare },
-  { label: "Comments", to: "/admin/comments", icon: MessageSquare },
-  { label: "Reviews", to: "/admin/reviews", icon: Star },
-  { label: "Categories", to: "/admin/categories", icon: FolderTree },
-  { label: "Settings", to: "/admin/settings", icon: Settings },
+  { label: "Dashboard", to: "/admin", icon: LayoutDashboard, roles: ["admin"] },
+  { label: "Users", to: "/admin/users", icon: Users, roles: ["admin"] },
+  { label: "Places", to: "/admin/places", icon: MapPinned, roles: ["admin"] },
+  { label: "Posts", to: "/admin/posts", icon: MessageSquare, roles: ["moderator", "admin"] },
+  { label: "Comments", to: "/admin/comments", icon: MessageSquare, roles: ["moderator", "admin"] },
+  { label: "Reviews", to: "/admin/reviews", icon: Star, roles: ["moderator", "admin"] },
+  { label: "Categories", to: "/admin/categories", icon: FolderTree, roles: ["admin"] },
+  { label: "Settings", to: "/admin/settings", icon: Settings, roles: ["admin"] },
 ];
 
 export function AdminLayout({ children, user }: { children: React.ReactNode; user: User | null }) {
@@ -32,7 +32,7 @@ export function AdminLayout({ children, user }: { children: React.ReactNode; use
           <Link className="text-sm text-muted-foreground hover:text-foreground lg:hidden" to="/">Public site</Link>
         </div>
         <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:block lg:space-y-1 lg:overflow-visible lg:px-3">
-          {adminNavItems.map((item) => {
+          {adminNavItems.filter((item) => item.roles.includes(user?.role ?? "user")).map((item) => {
             const Icon = item.icon;
             return (
               <NavLink

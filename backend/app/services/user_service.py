@@ -94,6 +94,8 @@ class UserService:
         return self.user_repository.set_active(target, is_active)
 
     def update_user_role(self, *, actor: User, target: User, role: str) -> User:
+        if role not in {"user", "moderator", "admin"}:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role.")
         if actor.role != "admin":
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges are required.")
         if actor.id == target.id and role != "admin":

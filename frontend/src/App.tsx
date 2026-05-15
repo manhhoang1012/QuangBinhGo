@@ -145,7 +145,7 @@ const router = createBrowserRouter([
       {
         path: "admin/posts",
         element: (
-          <ProtectedAdminRoute>
+          <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
             <AdminPostsPage />
           </ProtectedAdminRoute>
         ),
@@ -153,7 +153,7 @@ const router = createBrowserRouter([
       {
         path: "admin/comments",
         element: (
-          <ProtectedAdminRoute>
+          <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
             <AdminCommentsPage />
           </ProtectedAdminRoute>
         ),
@@ -161,7 +161,7 @@ const router = createBrowserRouter([
       {
         path: "admin/reviews",
         element: (
-          <ProtectedAdminRoute>
+          <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
             <AdminReviewsPage />
           </ProtectedAdminRoute>
         ),

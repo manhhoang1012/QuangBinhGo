@@ -7,10 +7,11 @@ import { authStorage } from "@/services/api";
 import { getCurrentProfile } from "@/services/userApi";
 
 interface ProtectedAdminRouteProps {
+  allowedRoles?: Array<User["role"]>;
   children: React.ReactNode;
 }
 
-export function ProtectedAdminRoute({ children }: ProtectedAdminRouteProps) {
+export function ProtectedAdminRoute({ allowedRoles = ["admin"], children }: ProtectedAdminRouteProps) {
   const token = authStorage.getToken();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(token));
@@ -32,7 +33,7 @@ export function ProtectedAdminRoute({ children }: ProtectedAdminRouteProps) {
     return <Navigate replace to="/login" />;
   }
 
-  if (user.role !== "admin") {
+  if (!allowedRoles.includes(user.role)) {
     return <Navigate replace to="/" />;
   }
 

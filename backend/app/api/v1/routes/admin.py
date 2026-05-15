@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Upl
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.api.dependencies import require_admin
+from app.api.dependencies import require_admin, require_moderator_or_admin
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.place import Category, Place
@@ -221,7 +221,7 @@ def admin_list_posts(
     search: str | None = None,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),
-    _: User = Depends(require_admin),
+    _: User = Depends(require_moderator_or_admin),
     db: Session = Depends(get_db),
 ):
     rows = ReviewPostRepository(db).list_with_counts(skip=skip, limit=limit)
@@ -233,7 +233,7 @@ def admin_list_posts(
 
 
 @router.get("/posts/{post_id}", response_model=ReviewPostRead)
-def admin_get_post(post_id: int, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def admin_get_post(post_id: int, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
     post = ReviewPostRepository(db).get(post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found.")
@@ -242,7 +242,7 @@ def admin_get_post(post_id: int, _: User = Depends(require_admin), db: Session =
 
 
 @router.patch("/posts/{post_id}/status", response_model=ReviewPostRead)
-def admin_update_post_status(post_id: int, payload: PostStatusUpdate, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def admin_update_post_status(post_id: int, payload: PostStatusUpdate, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
     post = ReviewPostRepository(db).get(post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found.")
@@ -253,7 +253,7 @@ def admin_update_post_status(post_id: int, payload: PostStatusUpdate, _: User = 
 
 
 @router.delete("/posts/{post_id}", response_model=MessageResponse)
-def admin_delete_post(post_id: int, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def admin_delete_post(post_id: int, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
     post = ReviewPostRepository(db).get(post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found.")
@@ -268,7 +268,7 @@ def admin_list_comments(
     user_id: int | None = None,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),
-    _: User = Depends(require_admin),
+    _: User = Depends(require_moderator_or_admin),
     db: Session = Depends(get_db),
 ):
     stmt = select(PostComment).options(selectinload(PostComment.author)).order_by(PostComment.created_at.desc()).offset(skip).limit(limit)
@@ -288,7 +288,7 @@ def admin_list_comments(
 
 
 @router.delete("/comments/{comment_id}", response_model=MessageResponse)
-def admin_delete_comment(comment_id: int, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def admin_delete_comment(comment_id: int, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
     comment = db.get(PostComment, comment_id)
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found.")
@@ -298,12 +298,12 @@ def admin_delete_comment(comment_id: int, _: User = Depends(require_admin), db: 
 
 
 @router.get("/reviews", response_model=list[AdminPlaceReviewRead])
-def admin_list_reviews(_: User = Depends(require_admin), db: Session = Depends(get_db)):
+def admin_list_reviews(_: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
     return list(db.scalars(select(PlaceReview).options(selectinload(PlaceReview.author), selectinload(PlaceReview.place)).order_by(PlaceReview.created_at.desc())).all())
 
 
 @router.delete("/reviews/{review_id}", response_model=MessageResponse)
-def admin_delete_review(review_id: int, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def admin_delete_review(review_id: int, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
     review = db.get(PlaceReview, review_id)
     if not review:
         raise HTTPException(status_code=404, detail="Review not found.")

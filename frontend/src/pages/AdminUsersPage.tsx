@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,7 +18,7 @@ export function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setError(null);
     setNotice(null);
     setIsLoading(true);
@@ -34,11 +34,11 @@ export function AdminUsersPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [role, search, status]);
 
   useEffect(() => {
     void loadUsers();
-  }, []);
+  }, [loadUsers]);
 
   const handleStatus = async (user: User) => {
     try {
