@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AdminPageHeader } from "@/layouts/AdminLayout";
 import { type Place } from "@/services/api";
-import { createPlace, deletePlace, getPlaces, updatePlace, type PlacePayload } from "@/services/placeApi";
+import { createAdminPlace, deleteAdminPlace, getAdminPlaces, updateAdminPlace } from "@/services/adminApi";
+import { type PlacePayload } from "@/services/placeApi";
 
 const emptyForm: PlacePayload = {
   name: "",
@@ -35,7 +36,7 @@ export function AdminPlacesPage() {
     setIsLoading(true);
     setError(null);
     try {
-      setPlaces(await getPlaces({ search: search || undefined, limit: 100 }));
+      setPlaces(await getAdminPlaces({ search: search || undefined, limit: 100 }));
     } catch {
       setError("Could not load places.");
     } finally {
@@ -78,10 +79,10 @@ export function AdminPlacesPage() {
     setNotice(null);
     try {
       if (editingPlaceId) {
-        await updatePlace(editingPlaceId, form);
+        await updateAdminPlace(editingPlaceId, form);
         setNotice("Place updated successfully.");
       } else {
-        await createPlace(form);
+        await createAdminPlace(form);
         setNotice("Place created successfully.");
       }
       setShowForm(false);
@@ -97,7 +98,7 @@ export function AdminPlacesPage() {
     if (!window.confirm(`Delete ${place.name}? This cannot be undone.`)) return;
     setError(null);
     try {
-      await deletePlace(place.id);
+      await deleteAdminPlace(place.id);
       setNotice("Place deleted successfully.");
       await loadPlaces();
     } catch {

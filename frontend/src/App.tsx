@@ -3,9 +3,12 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { ProtectedAdminRoute } from "@/components/ProtectedAdminRoute";
 import { RootLayout } from "@/layouts/RootLayout";
 import { AdminDashboardPage } from "@/pages/AdminDashboardPage";
+import { AdminCategoriesPage } from "@/pages/AdminCategoriesPage";
+import { AdminCommentsPage } from "@/pages/AdminCommentsPage";
 import { AdminPlaceholderPage } from "@/pages/AdminPlaceholderPage";
 import { AdminPlacesPage } from "@/pages/AdminPlacesPage";
 import { AdminPostsPage } from "@/pages/AdminPostsPage";
+import { AdminReviewsPage } from "@/pages/AdminReviewsPage";
 import { AdminUsersPage } from "@/pages/AdminUsersPage";
 import { AiItineraryPage } from "@/pages/AiItineraryPage";
 import { AiSearchPage } from "@/pages/AiSearchPage";
@@ -151,11 +154,7 @@ const router = createBrowserRouter([
         path: "admin/comments",
         element: (
           <ProtectedAdminRoute>
-            <AdminPlaceholderPage
-              description="Moderate comments after backend list/delete endpoints are added."
-              endpoints={["GET /api/v1/admin/comments", "DELETE /api/v1/admin/comments/{comment_id}"]}
-              title="Comments"
-            />
+            <AdminCommentsPage />
           </ProtectedAdminRoute>
         ),
       },
@@ -163,11 +162,7 @@ const router = createBrowserRouter([
         path: "admin/reviews",
         element: (
           <ProtectedAdminRoute>
-            <AdminPlaceholderPage
-              description="Manage place ratings and reviews after backend review endpoints are added."
-              endpoints={["GET /api/v1/admin/reviews", "DELETE /api/v1/admin/reviews/{review_id}"]}
-              title="Reviews"
-            />
+            <AdminReviewsPage />
           </ProtectedAdminRoute>
         ),
       },
@@ -175,11 +170,7 @@ const router = createBrowserRouter([
         path: "admin/categories",
         element: (
           <ProtectedAdminRoute>
-            <AdminPlaceholderPage
-              description="Create and edit tourism categories after category APIs are available."
-              endpoints={["GET /api/v1/admin/categories", "POST /api/v1/admin/categories", "PATCH /api/v1/admin/categories/{category_id}", "DELETE /api/v1/admin/categories/{category_id}"]}
-              title="Categories"
-            />
+            <AdminCategoriesPage />
           </ProtectedAdminRoute>
         ),
       },

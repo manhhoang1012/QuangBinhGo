@@ -5,12 +5,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { AdminPageHeader } from "@/layouts/AdminLayout";
 import { type ReviewPost } from "@/services/api";
-import { getCommunityFeed } from "@/services/postApi";
+import { deletePost, getAdminPosts, updatePostStatus } from "@/services/adminApi";
 
 export function AdminPostsPage() {
   const [posts, setPosts] = useState<ReviewPost[]>([]);
   const [query, setQuery] = useState("");
   const [selectedPost, setSelectedPost] = useState<ReviewPost | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,7 +20,7 @@ export function AdminPostsPage() {
       setIsLoading(true);
       setError(null);
       try {
-        setPosts(await getCommunityFeed("latest"));
+        setPosts(await getAdminPosts({ search: query || undefined }));
       } catch {
         setError("Could not load social posts.");
       } finally {
@@ -29,14 +30,49 @@ export function AdminPostsPage() {
     void loadPosts();
   }, []);
 
+  const loadPosts = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      setPosts(await getAdminPosts({ search: query || undefined }));
+    } catch {
+      setError("Could not load social posts.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleStatus = async (post: ReviewPost, status: string) => {
+    try {
+      await updatePostStatus(post.id, status);
+      setNotice("Post status updated.");
+      await loadPosts();
+    } catch {
+      setError("Could not update post status.");
+    }
+  };
+
+  const handleDelete = async (post: ReviewPost) => {
+    if (!window.confirm(`Delete post "${post.title}"?`)) return;
+    try {
+      await deletePost(post.id);
+      setNotice("Post deleted.");
+      await loadPosts();
+    } catch {
+      setError("Could not delete post.");
+    }
+  };
+
   const filteredPosts = posts.filter((post) => `${post.title} ${post.content} ${post.author.full_name}`.toLowerCase().includes(query.toLowerCase()));
 
   return (
     <section>
       <AdminPageHeader description="Review community posts. Hide/delete moderation endpoints are pending backend support." title="Social posts" />
+      {notice && <div className="mt-6 rounded-lg border bg-accent/10 p-4 text-sm text-accent">{notice}</div>}
       {error && <div className="mt-6 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">{error}</div>}
-      <div className="mt-6">
+      <div className="mt-6 flex gap-2">
         <Input onChange={(event) => setQuery(event.target.value)} placeholder="Search posts by title, content, or author" value={query} />
+        <Button onClick={() => void loadPosts()} variant="outline">Search</Button>
       </div>
       {isLoading && <Card className="mt-6 h-48 animate-pulse bg-muted/60" />}
       {!isLoading && filteredPosts.length === 0 && <div className="mt-6 rounded-lg border bg-background p-8 text-center text-muted-foreground">No posts found.</div>}
@@ -50,7 +86,11 @@ export function AdminPostsPage() {
                 <p className="text-sm text-muted-foreground">{post.author.full_name} - {post.place.name} - {post.likes_count} likes - {post.comments_count} comments</p>
                 <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{post.content}</p>
               </div>
-              <Button onClick={() => setSelectedPost(post)} variant="outline">View</Button>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={() => setSelectedPost(post)} variant="outline">View</Button>
+                <Button onClick={() => void handleStatus(post, post.status === "hidden" ? "visible" : "hidden")} variant="outline">{post.status === "hidden" ? "Show" : "Hide"}</Button>
+                <Button onClick={() => void handleDelete(post)} variant="outline">Delete</Button>
+              </div>
             </CardContent>
           </Card>
         ))}
@@ -68,9 +108,7 @@ export function AdminPostsPage() {
                 <Button onClick={() => setSelectedPost(null)} variant="outline">Close</Button>
               </div>
               <p className="mt-4 leading-7 text-muted-foreground">{selectedPost.content}</p>
-              <div className="mt-4 rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
-                TODO backend: add admin endpoints to hide/show/delete posts.
-              </div>
+              <p className="mt-4 text-sm text-muted-foreground">Status: {selectedPost.status ?? "visible"}</p>
             </CardContent>
           </Card>
         </div>

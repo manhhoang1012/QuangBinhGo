@@ -61,6 +61,7 @@ export interface Place {
   name: string;
   description: string;
   category: string;
+  status?: string;
   address: string;
   latitude: string | number;
   longitude: string | number;
@@ -74,6 +75,7 @@ export interface ReviewPost {
   content: string;
   place_id: number;
   images: string[];
+  status?: string;
   author: User;
   place: Place;
   likes_count: number;
@@ -88,4 +90,13 @@ export interface Comment {
   content: string;
   author: User;
   created_at: string;
+}
+
+export interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string | null;
+  icon?: string | null;
+  status: string;
 }

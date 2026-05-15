@@ -4,12 +4,13 @@ import { MapPinned, MessageSquare, Star, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdminPageHeader } from "@/layouts/AdminLayout";
 import { type Place, type ReviewPost, type User } from "@/services/api";
-import { getAdminOverview } from "@/services/adminApi";
+import { type AdminStats, getAdminOverview } from "@/services/adminApi";
 
 export function AdminDashboardPage() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [posts, setPosts] = useState<ReviewPost[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [stats, setStats] = useState<AdminStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,6 +23,7 @@ export function AdminDashboardPage() {
         setPlaces(overview.places);
         setPosts(overview.posts);
         setUsers(overview.users);
+        setStats(overview.stats);
       } catch {
         setError("Could not load admin overview.");
       } finally {
@@ -32,14 +34,14 @@ export function AdminDashboardPage() {
     void loadOverview();
   }, []);
 
-  const commentCount = useMemo(() => posts.reduce((total, post) => total + post.comments_count, 0), [posts]);
+  const commentCount = useMemo(() => stats?.total_comments ?? posts.reduce((total, post) => total + post.comments_count, 0), [posts, stats]);
 
   const metrics = [
-    { label: "Users", value: users.length, icon: Users },
-    { label: "Places", value: places.length, icon: MapPinned },
-    { label: "Social posts", value: posts.length, icon: MessageSquare },
+    { label: "Users", value: stats?.total_users ?? users.length, icon: Users },
+    { label: "Places", value: stats?.total_places ?? places.length, icon: MapPinned },
+    { label: "Social posts", value: stats?.total_posts ?? posts.length, icon: MessageSquare },
     { label: "Comments", value: commentCount, icon: MessageSquare },
-    { label: "Reviews", value: "Pending API", icon: Star },
+    { label: "Reviews", value: stats?.total_reviews ?? 0, icon: Star },
   ];
 
   return (

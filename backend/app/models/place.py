@@ -14,8 +14,20 @@ class Place(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     category: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="active", nullable=False)
     address: Mapped[str] = mapped_column(String(500), nullable=False)
     latitude: Mapped[Decimal] = mapped_column(Numeric(9, 6), nullable=False)
     longitude: Mapped[Decimal] = mapped_column(Numeric(9, 6), nullable=False)
     images: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     rating_avg: Mapped[Decimal] = mapped_column(Numeric(3, 2), default=0, nullable=False)
+
+
+class Category(TimestampMixin, Base):
+    __tablename__ = "categories"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
+    slug: Mapped[str] = mapped_column(String(120), unique=True, index=True, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    icon: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="active", nullable=False)

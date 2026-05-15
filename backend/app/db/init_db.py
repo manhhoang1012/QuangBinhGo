@@ -1,14 +1,15 @@
 from app.db.base import Base
 from app.db.session import engine
-from app.models import AuthToken, Place, PlaceReview, PostComment, PostLike, PostSave, ReviewPost, User
+from app.models import AuthToken, Category, Place, PlaceReview, PostComment, PostLike, PostSave, ReviewPost, User
 from sqlalchemy import inspect, text
 
-__all__ = ["AuthToken", "Place", "PlaceReview", "PostComment", "PostLike", "PostSave", "ReviewPost", "User"]
+__all__ = ["AuthToken", "Category", "Place", "PlaceReview", "PostComment", "PostLike", "PostSave", "ReviewPost", "User"]
 
 
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     ensure_user_profile_columns()
+    ensure_admin_content_columns()
 
 
 def ensure_user_profile_columns() -> None:
@@ -42,3 +43,21 @@ def ensure_user_profile_columns() -> None:
         connection.execute(text("UPDATE users SET role = 'admin' WHERE is_admin = TRUE"))
         connection.execute(text("UPDATE users SET role = 'user' WHERE role IS NULL"))
         connection.execute(text("UPDATE users SET phone_number = phone WHERE phone_number IS NULL AND phone IS NOT NULL"))
+
+
+def ensure_admin_content_columns() -> None:
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    table_columns = {
+        "places": {"status": "VARCHAR(30) DEFAULT 'active' NOT NULL"},
+        "review_posts": {"status": "VARCHAR(30) DEFAULT 'visible' NOT NULL"},
+    }
+
+    with engine.begin() as connection:
+        for table_name, columns in table_columns.items():
+            if table_name not in tables:
+                continue
+            existing_columns = {column["name"] for column in inspector.get_columns(table_name)}
+            for column_name, column_type in columns.items():
+                if column_name not in existing_columns:
+                    connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"))

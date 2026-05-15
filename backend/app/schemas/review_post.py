@@ -32,6 +32,7 @@ class ReviewPostRead(BaseModel):
     content: str
     place_id: int
     images: list[str]
+    status: str = "visible"
     author: UserRead
     place: PlaceRead
     likes_count: int = 0
@@ -60,3 +61,21 @@ class PlaceReviewRead(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PostStatusUpdate(BaseModel):
+    status: str = Field(min_length=1, max_length=30)
+
+
+class AdminCommentRead(BaseModel):
+    id: int
+    content: str
+    author: UserRead
+    post: ReviewPostRead
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AdminPlaceReviewRead(PlaceReviewRead):
+    author: UserRead

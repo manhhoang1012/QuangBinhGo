@@ -14,6 +14,7 @@ class ReviewPost(TimestampMixin, Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     images: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="visible", nullable=False)
 
     author = relationship("User")
     place = relationship("Place")
