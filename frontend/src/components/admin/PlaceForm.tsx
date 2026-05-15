@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Autocomplete, GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
-import { LocateFixed, Save, Upload, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ImageIcon, LocateFixed, Save, Upload, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +14,7 @@ const QUANG_BINH_CENTER = { lat: 17.4689, lng: 106.6223 };
 const libraries: "places"[] = ["places"];
 const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
 const maxFileSize = 5 * 1024 * 1024;
+const maxImagesPerPlace = 10;
 
 interface PreviewImage {
   file: File;
@@ -47,9 +48,18 @@ export function PlaceForm({ initialPlace, isSaving, onCancel, onSubmit }: PlaceF
   const [fileError, setFileError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const newImagesRef = useRef<PreviewImage[]>([]);
   const hasSelectedLocation = Boolean(form.latitude && form.longitude);
+  const galleryImages = useMemo(
+    () => [
+      ...keptImages.map((url) => ({ kind: "kept" as const, url })),
+      ...newImages.map((image) => ({ kind: "new" as const, url: image.url })),
+    ],
+    [keptImages, newImages],
+  );
+  const selectedImage = galleryImages[selectedImageIndex] ?? galleryImages[0];
 
   const selectedPosition = useMemo(() => {
     const lat = Number(form.latitude);
@@ -70,6 +80,12 @@ export function PlaceForm({ initialPlace, isSaving, onCancel, onSubmit }: PlaceF
   useEffect(() => {
     return () => newImagesRef.current.forEach((image) => URL.revokeObjectURL(image.url));
   }, []);
+
+  useEffect(() => {
+    if (selectedImageIndex >= galleryImages.length) {
+      setSelectedImageIndex(Math.max(galleryImages.length - 1, 0));
+    }
+  }, [galleryImages.length, selectedImageIndex]);
 
   const handlePlaceChanged = () => {
     const place = autocompleteRef.current?.getPlace();
@@ -128,6 +144,10 @@ export function PlaceForm({ initialPlace, isSaving, onCancel, onSubmit }: PlaceF
     const invalid = nextFiles.find((file) => !allowedTypes.includes(file.type) || file.size > maxFileSize);
     if (invalid) {
       setFileError("Images must be jpg, png, or webp and 5MB or smaller.");
+      return;
+    }
+    if (keptImages.length + newImages.length + nextFiles.length > maxImagesPerPlace) {
+      setFileError(`Each place can have up to ${maxImagesPerPlace} images.`);
       return;
     }
     setFileError(null);
@@ -197,19 +217,24 @@ export function PlaceForm({ initialPlace, isSaving, onCancel, onSubmit }: PlaceF
 
         <div>
           <p className="font-medium">Images</p>
-          <p className="mt-1 text-sm text-muted-foreground">Upload jpg, png, or webp images. Max 5MB per file.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Upload jpg, jpeg, png, or webp images. Max 5MB per file and {maxImagesPerPlace} images per place.</p>
           {fileError && <p className="mt-2 text-sm text-destructive">{fileError}</p>}
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {keptImages.map((image) => (
-              <ImagePreview key={image} src={image} onRemove={() => setKeptImages((current) => current.filter((item) => item !== image))} />
-            ))}
-            {newImages.map((image, index) => (
-              <ImagePreview key={`${image.file.name}-${index}`} src={image.url} onRemove={() => {
-                URL.revokeObjectURL(image.url);
-                setNewImages((current) => current.filter((_, fileIndex) => fileIndex !== index));
-              }} />
-            ))}
-          </div>
+          <AdminImageGallery
+            images={galleryImages}
+            onRemove={(image, index) => {
+              if (image.kind === "kept") {
+                setKeptImages((current) => current.filter((item) => item !== image.url));
+              } else {
+                const newImageIndex = index - keptImages.length;
+                const target = newImages[newImageIndex];
+                if (target) URL.revokeObjectURL(target.url);
+                setNewImages((current) => current.filter((_, fileIndex) => fileIndex !== newImageIndex));
+              }
+            }}
+            onSelect={setSelectedImageIndex}
+            selectedIndex={selectedImageIndex}
+            selectedImage={selectedImage}
+          />
           <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted">
             <Upload className="h-4 w-4" />
             Upload images
@@ -230,11 +255,70 @@ export function PlaceForm({ initialPlace, isSaving, onCancel, onSubmit }: PlaceF
   }
 }
 
-function ImagePreview({ onRemove, src }: { onRemove: () => void; src: string }) {
+interface AdminGalleryImage {
+  kind: "kept" | "new";
+  url: string;
+}
+
+function AdminImageGallery({
+  images,
+  onRemove,
+  onSelect,
+  selectedImage,
+  selectedIndex,
+}: {
+  images: AdminGalleryImage[];
+  onRemove: (image: AdminGalleryImage, index: number) => void;
+  onSelect: (index: number) => void;
+  selectedImage?: AdminGalleryImage;
+  selectedIndex: number;
+}) {
+  const showPrevious = () => onSelect(selectedIndex === 0 ? images.length - 1 : selectedIndex - 1);
+  const showNext = () => onSelect(selectedIndex === images.length - 1 ? 0 : selectedIndex + 1);
+
+  if (!selectedImage) {
+    return (
+      <div className="mt-3 flex min-h-48 items-center justify-center rounded-md border bg-muted/40 text-center text-sm text-muted-foreground">
+        <div>
+          <ImageIcon className="mx-auto h-8 w-8" />
+          <p className="mt-2">Chưa có hình ảnh cho địa điểm này.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="relative overflow-hidden rounded-md border">
-      <img alt="Place preview" className="h-36 w-full object-cover" src={src} />
-      <button className="absolute right-2 top-2 rounded-md bg-black/60 px-2 py-1 text-xs text-white" onClick={onRemove} type="button">Remove</button>
+    <div className="mt-3 space-y-3">
+      <div className="relative overflow-hidden rounded-md border bg-muted">
+        <img alt="Place preview" className="aspect-[16/9] w-full object-cover" src={selectedImage.url} />
+        {images.length > 1 && (
+          <>
+            <button className="absolute left-3 top-1/2 rounded-full bg-background/90 p-2 shadow" onClick={showPrevious} type="button">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button className="absolute right-3 top-1/2 rounded-full bg-background/90 p-2 shadow" onClick={showNext} type="button">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </>
+        )}
+        <button className="absolute right-3 top-3 rounded-md bg-black/65 px-3 py-1.5 text-xs font-medium text-white" onClick={() => onRemove(selectedImage, selectedIndex)} type="button">
+          Remove
+        </button>
+      </div>
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {images.map((image, index) => (
+          <button
+            className={`relative h-20 w-28 shrink-0 overflow-hidden rounded-md border-2 bg-muted ${
+              selectedIndex === index ? "border-destructive shadow-sm" : "border-transparent hover:border-muted-foreground/40"
+            }`}
+            key={`${image.url}-${index}`}
+            onClick={() => onSelect(index)}
+            type="button"
+          >
+            <img alt={`Place thumbnail ${index + 1}`} className="h-full w-full object-cover" src={image.url} />
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

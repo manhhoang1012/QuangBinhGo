@@ -11,7 +11,7 @@ class PlaceBase(BaseModel):
     address: str = Field(min_length=1, max_length=500)
     latitude: Decimal = Field(ge=-90, le=90)
     longitude: Decimal = Field(ge=-180, le=180)
-    images: list[str] = Field(default_factory=list)
+    images: list[str] = Field(default_factory=list, max_length=10)
     rating_avg: Decimal = Field(default=0, ge=0, le=5)
 
 
@@ -26,7 +26,7 @@ class PlaceUpdate(BaseModel):
     address: str | None = Field(default=None, min_length=1, max_length=500)
     latitude: Decimal | None = Field(default=None, ge=-90, le=90)
     longitude: Decimal | None = Field(default=None, ge=-180, le=180)
-    images: list[str] | None = None
+    images: list[str] | None = Field(default=None, max_length=10)
     rating_avg: Decimal | None = Field(default=None, ge=0, le=5)
     status: str | None = Field(default=None, min_length=1, max_length=30)
 

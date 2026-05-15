@@ -25,6 +25,7 @@ router = APIRouter()
 
 ALLOWED_PLACE_IMAGE_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
 MAX_PLACE_IMAGE_BYTES = 5 * 1024 * 1024
+MAX_PLACE_IMAGE_UPLOADS = 10
 
 
 def user_service(db: Session) -> UserService:
@@ -47,6 +48,9 @@ async def upload_place_images(
     files: list[UploadFile] = File(...),
     _: User = Depends(require_admin),
 ) -> dict[str, list[str]]:
+    if len(files) > MAX_PLACE_IMAGE_UPLOADS:
+        raise HTTPException(status_code=400, detail="You can upload up to 10 images at a time.")
+
     upload_dir = Path(__file__).resolve().parents[4] / "static" / "uploads" / "places"
     upload_dir.mkdir(parents=True, exist_ok=True)
     urls: list[str] = []

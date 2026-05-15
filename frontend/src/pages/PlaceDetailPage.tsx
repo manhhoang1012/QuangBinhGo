@@ -5,6 +5,7 @@ import { Link, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PlaceImageGallery } from "@/components/places/PlaceImageGallery";
 import { type Place, type ReviewPost } from "@/services/api";
 import { getPlace } from "@/services/placeApi";
 import { getCommunityFeed } from "@/services/postApi";
@@ -45,13 +46,11 @@ export function PlaceDetailPage() {
 
   return (
     <section>
-      <div className="relative h-[460px] overflow-hidden">
-        <img alt={place.name} className="h-full w-full object-cover" src={place.images[0] ?? "https://placehold.co/1200x800?text=QuangBinhGo"} />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 mx-auto max-w-7xl px-4 py-10 text-white sm:px-6 lg:px-8">
-          <Badge className="bg-white/15 text-white backdrop-blur">{place.category}</Badge>
-          <h1 className="mt-4 max-w-3xl text-5xl font-semibold">{place.name}</h1>
-          <p className="mt-4 flex items-center gap-2 text-white/85">
+      <div className="border-b bg-muted/30">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <Badge>{place.category}</Badge>
+          <h1 className="mt-4 max-w-3xl text-4xl font-semibold sm:text-5xl">{place.name}</h1>
+          <p className="mt-4 flex items-center gap-2 text-muted-foreground">
             <MapPin className="h-5 w-5" />
             {place.address}
           </p>
@@ -60,7 +59,9 @@ export function PlaceDetailPage() {
 
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_360px] lg:px-8">
         <div>
-          <div className="flex flex-wrap gap-3">
+          <PlaceImageGallery images={place.images ?? []} placeName={place.name} />
+
+          <div className="mt-8 flex flex-wrap gap-3">
             <Badge className="bg-secondary text-secondary-foreground">
               <Star className="mr-1 h-3.5 w-3.5 fill-current" />
               {Number(place.rating_avg).toFixed(1)} rating
