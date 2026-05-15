@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field, HttpUrl
@@ -41,13 +41,12 @@ class PublicUserRead(BaseModel):
     id: int
     username: str | None = None
     full_name: str
-    role: UserRole = "user"
     avatar_url: str | None = None
     cover_image_url: str | None = None
     bio: str | None = None
-    gender: Gender | None = None
     location: str | None = None
     social_links: SocialLinks | None = None
+    created_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 

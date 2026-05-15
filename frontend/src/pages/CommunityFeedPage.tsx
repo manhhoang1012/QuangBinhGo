@@ -131,7 +131,13 @@ export function CommunityFeedPage() {
           <Card key={post.id} className="overflow-hidden">
             <img alt={post.title} className="h-72 w-full object-cover" src={post.images[0] ?? post.place.images[0] ?? "https://placehold.co/1200x800?text=QuangBinhGo"} />
             <CardContent className="pt-5">
-              <p className="text-sm text-muted-foreground">{post.author.full_name} - {post.place.name} - {new Date(post.created_at).toLocaleDateString()}</p>
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <AuthorLink user={post.author} />
+                <span>-</span>
+                <span>{post.place.name}</span>
+                <span>-</span>
+                <span>{new Date(post.created_at).toLocaleDateString()}</span>
+              </div>
               <h2 className="mt-2 text-2xl font-semibold">{post.title}</h2>
               <p className="mt-3 leading-7 text-muted-foreground">{post.content}</p>
               <div className="mt-5 flex flex-wrap gap-3 text-sm text-muted-foreground">
@@ -150,7 +156,7 @@ export function CommunityFeedPage() {
                   {commentsByPost[post.id].length === 0 && <p className="text-sm text-muted-foreground">No comments yet.</p>}
                   {commentsByPost[post.id].map((comment) => (
                     <div key={comment.id} className="rounded-md bg-muted/50 p-3 text-sm">
-                      <p className="font-medium">{comment.author.full_name}</p>
+                      <AuthorLink user={comment.author} />
                       <p className="mt-1 text-muted-foreground">{comment.content}</p>
                     </div>
                   ))}
@@ -170,5 +176,26 @@ export function CommunityFeedPage() {
         </div>
       )}
     </section>
+  );
+}
+
+function AuthorLink({ user }: { user: { avatar_url?: string | null; full_name: string; username?: string | null } }) {
+  const content = (
+    <>
+      <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+        {user.avatar_url ? <img alt={user.full_name} className="h-full w-full object-cover" src={user.avatar_url} /> : user.full_name.slice(0, 2).toUpperCase()}
+      </span>
+      <span className="font-medium text-foreground">{user.full_name}</span>
+    </>
+  );
+
+  if (!user.username) {
+    return <span className="inline-flex items-center gap-2">{content}</span>;
+  }
+
+  return (
+    <Link className="inline-flex items-center gap-2 hover:text-primary hover:underline" to={`/u/${user.username}`}>
+      {content}
+    </Link>
   );
 }
