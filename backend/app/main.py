@@ -1,11 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.v1.routes import ai
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.db.init_db import init_db
+from pathlib import Path
 
 
 def create_app() -> FastAPI:
@@ -31,6 +33,9 @@ def create_app() -> FastAPI:
 
     app.include_router(api_router, prefix=settings.api_v1_prefix)
     app.include_router(ai.router, prefix="/api/ai", tags=["ai"])
+    static_dir = Path(__file__).resolve().parents[1] / "static"
+    static_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
     @app.on_event("startup")
     def on_startup() -> None:

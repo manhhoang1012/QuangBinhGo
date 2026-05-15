@@ -1,8 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pathlib import Path
+from uuid import uuid4
+
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.dependencies import require_admin
+from app.core.config import settings
 from app.db.session import get_db
 from app.models.place import Category, Place
 from app.models.review_post import PlaceReview, PostComment, ReviewPost
@@ -19,6 +23,9 @@ from app.services.user_service import UserService
 
 router = APIRouter()
 
+ALLOWED_PLACE_IMAGE_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+MAX_PLACE_IMAGE_BYTES = 5 * 1024 * 1024
+
 
 def user_service(db: Session) -> UserService:
     return UserService(UserRepository(db))
@@ -33,6 +40,32 @@ def get_target_user(user_id: int, db: Session = Depends(get_db)) -> User:
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
     return user
+
+
+@router.post("/uploads/places")
+async def upload_place_images(
+    files: list[UploadFile] = File(...),
+    _: User = Depends(require_admin),
+) -> dict[str, list[str]]:
+    upload_dir = Path(__file__).resolve().parents[4] / "static" / "uploads" / "places"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    urls: list[str] = []
+
+    for file in files:
+        suffix = ALLOWED_PLACE_IMAGE_TYPES.get(file.content_type or "")
+        if not suffix:
+            raise HTTPException(status_code=400, detail="Only jpg, png, and webp images are allowed.")
+
+        content = await file.read()
+        if len(content) > MAX_PLACE_IMAGE_BYTES:
+            raise HTTPException(status_code=400, detail="Each image must be 5MB or smaller.")
+
+        filename = f"{uuid4().hex}{suffix}"
+        path = upload_dir / filename
+        path.write_bytes(content)
+        urls.append(f"{settings.backend_url.rstrip('/')}/static/uploads/places/{filename}")
+
+    return {"urls": urls}
 
 
 @router.get("/dashboard/stats")
