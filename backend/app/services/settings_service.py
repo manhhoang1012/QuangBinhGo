@@ -1,5 +1,6 @@
 from pathlib import Path
 from uuid import uuid4
+import logging
 
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
@@ -9,7 +10,8 @@ from app.models.site_settings import SiteSettings
 from app.schemas.site_settings import SiteSettingsPayload
 
 SETTINGS_ID = 1
-MAX_SETTINGS_IMAGE_BYTES = 2 * 1024 * 1024
+MAX_IMAGE_SIZE = 5 * 1024 * 1024
+MAX_SETTINGS_IMAGE_BYTES = MAX_IMAGE_SIZE
 ALLOWED_SETTINGS_IMAGE_TYPES = {
     "image/jpeg": ".jpg",
     "image/png": ".png",
@@ -17,6 +19,8 @@ ALLOWED_SETTINGS_IMAGE_TYPES = {
     "image/x-icon": ".ico",
     "image/vnd.microsoft.icon": ".ico",
 }
+
+logger = logging.getLogger(__name__)
 
 
 def default_settings() -> dict:
@@ -48,13 +52,17 @@ class SettingsService:
 
         content = await file.read()
         if len(content) > MAX_SETTINGS_IMAGE_BYTES:
-            raise HTTPException(status_code=400, detail="Image must be 2MB or smaller.")
+            raise HTTPException(status_code=400, detail="Image must be 5MB or smaller.")
 
         safe_type = upload_type if upload_type in {"logo", "favicon", "hero"} else "settings"
         upload_dir = Path(__file__).resolve().parents[2] / "static" / "uploads" / "settings"
-        upload_dir.mkdir(parents=True, exist_ok=True)
         filename = f"{safe_type}-{uuid4().hex}{suffix}"
-        (upload_dir / filename).write_bytes(content)
+        try:
+            upload_dir.mkdir(parents=True, exist_ok=True)
+            (upload_dir / filename).write_bytes(content)
+        except OSError:
+            logger.exception("Failed to write settings image upload.")
+            raise HTTPException(status_code=500, detail="Could not save uploaded image.") from None
         return f"{settings.backend_url.rstrip('/')}/static/uploads/settings/{filename}"
 
     def _get_or_create(self) -> SiteSettings:

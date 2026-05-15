@@ -1,7 +1,7 @@
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -57,13 +57,25 @@ def update_settings(payload: SiteSettingsPayload, _: User = Depends(require_admi
 
 @router.post("/settings/upload", response_model=SettingsUploadResponse)
 async def upload_setting_image(
-    upload_type: str = Query(default="settings", pattern="^(logo|favicon|hero|settings)$"),
+    request: Request,
+    upload_type: str = Query(...),
     file: UploadFile = File(...),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> SettingsUploadResponse:
-    url = await SettingsService(db).upload_image(file, upload_type)
-    return SettingsUploadResponse(url=url)
+    print("CONTENT TYPE:", request.headers.get("content-type"))
+    print("UPLOAD TYPE:", upload_type)
+    print("FILE:", file.filename, file.content_type)
+
+    allowed_types = {"logo", "favicon", "hero", "hero_image", "hero_background"}
+    if upload_type not in allowed_types:
+        raise HTTPException(status_code=400, detail=f"Invalid upload_type: {upload_type}")
+    if not file:
+        raise HTTPException(status_code=400, detail="Missing file field.")
+
+    normalized_type = "hero" if upload_type in {"hero_image", "hero_background"} else upload_type
+    url = await SettingsService(db).upload_image(file, normalized_type)
+    return SettingsUploadResponse(url=url, image_url=url)
 
 
 @router.post("/uploads/places")

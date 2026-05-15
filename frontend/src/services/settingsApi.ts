@@ -1,4 +1,6 @@
-import { api } from "@/services/api";
+import axios from "axios";
+
+import { api, authStorage } from "@/services/api";
 
 export interface SiteSettings {
   site_name: string;
@@ -77,13 +79,30 @@ export async function updateAdminSettings(data: SiteSettings) {
 }
 
 export async function uploadSettingImage(file: File, type: "logo" | "favicon" | "hero" | "settings") {
+  if (!file) {
+    throw new Error("No file selected");
+  }
+
   const formData = new FormData();
   formData.append("file", file);
-  const response = await api.post<{ url: string }>("/admin/settings/upload", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-    params: { upload_type: type },
-  });
-  return response.data.url;
+
+  console.log("selectedFile:", file);
+  console.log("is File:", file instanceof File);
+  for (const pair of formData.entries()) {
+    console.log("FORMDATA:", pair[0], pair[1]);
+  }
+
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
+  const token = authStorage.getToken();
+  const response = await axios.post<{ url: string; image_url?: string }>(
+    `${apiBaseUrl}/admin/settings/upload`,
+    formData,
+    {
+      params: { upload_type: type },
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    },
+  );
+  return response.data.url || response.data.image_url || "";
 }
 
 export async function getPublicSettings() {

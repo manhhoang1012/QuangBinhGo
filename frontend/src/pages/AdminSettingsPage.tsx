@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { type ReactNode } from "react";
+import axios from "axios";
 import { Save, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ const uploadTypeByField: Record<UploadField, "logo" | "favicon" | "hero"> = {
   favicon_url: "favicon",
   hero_background_image: "hero",
 };
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
 export function AdminSettingsPage() {
   const [form, setForm] = useState<SiteSettings>(fallbackSettings);
@@ -66,12 +68,16 @@ export function AdminSettingsPage() {
     if (!file) return;
     setMessage(null);
     setError(null);
+    if (file.size > MAX_IMAGE_SIZE) {
+      setError("Image must be 5MB or smaller.");
+      return;
+    }
     try {
       const url = await uploadSettingImage(file, uploadTypeByField[field]);
       setFormValue(field, url);
       setMessage("Image uploaded. Save settings to keep this change.");
-    } catch {
-      setError("Could not upload image. Use jpg, png, webp, or ico for favicon.");
+    } catch (uploadError) {
+      setError(getUploadErrorMessage(uploadError));
     }
   };
 
@@ -173,13 +179,20 @@ function Toggle({ checked, label, onChange }: { checked: boolean; label: string;
 }
 
 function ImageInput({ field, label, onUpload, url }: { field: UploadField; label: string; onUpload: (file: File | undefined, field: UploadField) => void; url?: string | null }) {
+  const handleChange = (file: File | undefined) => {
+    console.log("SELECTED FILE:", file);
+    if (file) {
+      void onUpload(file, field);
+    }
+  };
+
   return (
     <div>
       <p className="text-sm font-medium">{label}</p>
       {url ? <img alt={label} className="mt-2 h-24 w-40 rounded-md border object-cover" src={url} /> : <div className="mt-2 flex h-24 w-40 items-center justify-center rounded-md border bg-muted/40 text-xs text-muted-foreground">No image</div>}
       <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-muted">
         <Upload className="h-4 w-4" /> Upload
-        <input accept=".jpg,.jpeg,.png,.webp,.ico,image/jpeg,image/png,image/webp,image/x-icon" className="hidden" onChange={(event) => void onUpload(event.target.files?.[0], field)} type="file" />
+        <input accept="image/png,image/jpeg,image/jpg,image/webp,image/x-icon,.ico" className="hidden" onChange={(event) => handleChange(event.target.files?.[0])} type="file" />
       </label>
     </div>
   );
@@ -187,4 +200,19 @@ function ImageInput({ field, label, onUpload, url }: { field: UploadField; label
 
 function AlertMessage({ text, tone }: { text: string; tone: "error" | "success" }) {
   return <div className={`mt-6 rounded-lg border p-4 text-sm ${tone === "error" ? "border-destructive/30 bg-destructive/10 text-destructive" : "bg-accent/10 text-accent"}`}>{text}</div>;
+}
+
+function getUploadErrorMessage(error: unknown) {
+  if (!axios.isAxiosError(error)) {
+    return "Could not upload image. Please try again.";
+  }
+
+  const status = error.response?.status;
+  const detail = error.response?.data?.detail;
+  if (status === 401 || status === 403) return "Upload blocked: admin login is required.";
+  if (status === 404) return "Upload endpoint was not found. Check backend route registration.";
+  if (detail) return Array.isArray(detail) ? detail.map((item) => item.msg ?? JSON.stringify(item)).join(", ") : String(detail);
+  if (status === 422) return "Upload request is invalid. Check file field and upload type.";
+  if (status && status >= 500) return "Backend could not save the image. Check static upload folder permissions.";
+  return "Could not upload image. Use jpg, png, webp, or ico for favicon.";
 }

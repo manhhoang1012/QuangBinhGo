@@ -65,3 +65,4 @@ class SiteSettingsPayload(BaseModel):
 
 class SettingsUploadResponse(BaseModel):
     url: str
+    image_url: str
