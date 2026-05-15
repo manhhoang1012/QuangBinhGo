@@ -3,6 +3,9 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { ProtectedAdminRoute } from "@/components/ProtectedAdminRoute";
 import { RootLayout } from "@/layouts/RootLayout";
 import { AdminDashboardPage } from "@/pages/AdminDashboardPage";
+import { AdminPlaceholderPage } from "@/pages/AdminPlaceholderPage";
+import { AdminPlacesPage } from "@/pages/AdminPlacesPage";
+import { AdminPostsPage } from "@/pages/AdminPostsPage";
 import { AdminUsersPage } from "@/pages/AdminUsersPage";
 import { AiItineraryPage } from "@/pages/AiItineraryPage";
 import { AiSearchPage } from "@/pages/AiSearchPage";
@@ -125,6 +128,70 @@ const router = createBrowserRouter([
         element: (
           <ProtectedAdminRoute>
             <AdminUsersPage />
+          </ProtectedAdminRoute>
+        ),
+      },
+      {
+        path: "admin/places",
+        element: (
+          <ProtectedAdminRoute>
+            <AdminPlacesPage />
+          </ProtectedAdminRoute>
+        ),
+      },
+      {
+        path: "admin/posts",
+        element: (
+          <ProtectedAdminRoute>
+            <AdminPostsPage />
+          </ProtectedAdminRoute>
+        ),
+      },
+      {
+        path: "admin/comments",
+        element: (
+          <ProtectedAdminRoute>
+            <AdminPlaceholderPage
+              description="Moderate comments after backend list/delete endpoints are added."
+              endpoints={["GET /api/v1/admin/comments", "DELETE /api/v1/admin/comments/{comment_id}"]}
+              title="Comments"
+            />
+          </ProtectedAdminRoute>
+        ),
+      },
+      {
+        path: "admin/reviews",
+        element: (
+          <ProtectedAdminRoute>
+            <AdminPlaceholderPage
+              description="Manage place ratings and reviews after backend review endpoints are added."
+              endpoints={["GET /api/v1/admin/reviews", "DELETE /api/v1/admin/reviews/{review_id}"]}
+              title="Reviews"
+            />
+          </ProtectedAdminRoute>
+        ),
+      },
+      {
+        path: "admin/categories",
+        element: (
+          <ProtectedAdminRoute>
+            <AdminPlaceholderPage
+              description="Create and edit tourism categories after category APIs are available."
+              endpoints={["GET /api/v1/admin/categories", "POST /api/v1/admin/categories", "PATCH /api/v1/admin/categories/{category_id}", "DELETE /api/v1/admin/categories/{category_id}"]}
+              title="Categories"
+            />
+          </ProtectedAdminRoute>
+        ),
+      },
+      {
+        path: "admin/settings",
+        element: (
+          <ProtectedAdminRoute>
+            <AdminPlaceholderPage
+              description="System settings UI placeholder."
+              endpoints={["GET /api/v1/admin/settings", "PATCH /api/v1/admin/settings"]}
+              title="Settings"
+            />
           </ProtectedAdminRoute>
         ),
       },

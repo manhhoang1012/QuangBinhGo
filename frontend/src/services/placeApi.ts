@@ -3,6 +3,8 @@ import { api, type Place } from "@/services/api";
 export interface GetPlacesParams {
   category?: string;
   search?: string;
+  skip?: number;
+  limit?: number;
 }
 
 export type PlacePayload = Omit<Place, "id">;
