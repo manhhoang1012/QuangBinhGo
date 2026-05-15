@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MapPin, Plus } from "lucide-react";
 
 import { PlaceForm } from "@/components/admin/PlaceForm";
@@ -20,7 +20,7 @@ export function AdminPlacesPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const loadPlaces = async () => {
+  const loadPlaces = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -30,11 +30,11 @@ export function AdminPlacesPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [search]);
 
   useEffect(() => {
     void loadPlaces();
-  }, []);
+  }, [loadPlaces]);
 
   const startCreate = () => {
     setEditingPlace(null);
@@ -116,7 +116,7 @@ export function AdminPlacesPage() {
                 <p className="text-sm text-muted-foreground">{place.category} - {place.status ?? "active"} - {place.address}</p>
                 <a
                   className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline"
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.latitude},${place.longitude}`)}`}
+                  href={`https://www.openstreetmap.org/?mlat=${place.latitude}&mlon=${place.longitude}#map=15/${place.latitude}/${place.longitude}`}
                   rel="noreferrer"
                   target="_blank"
                 >

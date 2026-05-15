@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Autocomplete, GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
-import { ChevronLeft, ChevronRight, ImageIcon, LocateFixed, Save, Upload, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ImageIcon, Save, Upload, X } from "lucide-react";
 
+import { PlaceLocationPicker } from "@/components/admin/PlaceLocationPicker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,8 +10,6 @@ import { type Place } from "@/services/api";
 import { uploadPlaceImages } from "@/services/adminApi";
 import { type PlacePayload } from "@/services/placeApi";
 
-const QUANG_BINH_CENTER = { lat: 17.4689, lng: 106.6223 };
-const libraries: "places"[] = ["places"];
 const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
 const maxFileSize = 5 * 1024 * 1024;
 const maxImagesPerPlace = 10;
@@ -21,7 +19,12 @@ interface PreviewImage {
   url: string;
 }
 
-export const emptyPlaceForm: PlacePayload = {
+interface AdminGalleryImage {
+  kind: "kept" | "new";
+  url: string;
+}
+
+const emptyPlaceForm: PlacePayload = {
   name: "",
   description: "",
   category: "nature",
@@ -41,7 +44,6 @@ interface PlaceFormProps {
 }
 
 export function PlaceForm({ initialPlace, isSaving, onCancel, onSubmit }: PlaceFormProps) {
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
   const [form, setForm] = useState<PlacePayload>(placeToForm(initialPlace));
   const [keptImages, setKeptImages] = useState<string[]>(initialPlace?.images ?? []);
   const [newImages, setNewImages] = useState<PreviewImage[]>([]);
@@ -49,9 +51,9 @@ export function PlaceForm({ initialPlace, isSaving, onCancel, onSubmit }: PlaceF
   const [formError, setFormError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const newImagesRef = useRef<PreviewImage[]>([]);
   const hasSelectedLocation = Boolean(form.latitude && form.longitude);
+
   const galleryImages = useMemo(
     () => [
       ...keptImages.map((url) => ({ kind: "kept" as const, url })),
@@ -60,18 +62,6 @@ export function PlaceForm({ initialPlace, isSaving, onCancel, onSubmit }: PlaceF
     [keptImages, newImages],
   );
   const selectedImage = galleryImages[selectedImageIndex] ?? galleryImages[0];
-
-  const selectedPosition = useMemo(() => {
-    const lat = Number(form.latitude);
-    const lng = Number(form.longitude);
-    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : QUANG_BINH_CENTER;
-  }, [form.latitude, form.longitude]);
-
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: apiKey ?? "",
-    libraries,
-    id: "quangbinhgo-admin-places-map",
-  });
 
   useEffect(() => {
     newImagesRef.current = newImages;
@@ -86,57 +76,6 @@ export function PlaceForm({ initialPlace, isSaving, onCancel, onSubmit }: PlaceF
       setSelectedImageIndex(Math.max(galleryImages.length - 1, 0));
     }
   }, [galleryImages.length, selectedImageIndex]);
-
-  const handlePlaceChanged = () => {
-    const place = autocompleteRef.current?.getPlace();
-    const location = place?.geometry?.location;
-    if (!location) return;
-
-    setForm((current) => ({
-      ...current,
-      name: current.name || place.name || "",
-      address: place.formatted_address || current.address,
-      latitude: location.lat().toFixed(6),
-      longitude: location.lng().toFixed(6),
-    }));
-  };
-
-  const handleMapClick = (event: google.maps.MapMouseEvent) => {
-    if (!event.latLng) return;
-    const lat = event.latLng.lat();
-    const lng = event.latLng.lng();
-    setCoordinates(lat, lng);
-    reverseGeocode(lat, lng);
-  };
-
-  const useCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      setFormError("Browser geolocation is not supported.");
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        setCoordinates(latitude, longitude);
-        reverseGeocode(latitude, longitude);
-      },
-      () => setFormError("Could not access current location."),
-    );
-  };
-
-  const reverseGeocode = (lat: number, lng: number) => {
-    if (!window.google?.maps) return;
-    const geocoder = new window.google.maps.Geocoder();
-    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-      if (status === "OK" && results?.[0]) {
-        setForm((current) => ({ ...current, address: results[0].formatted_address }));
-      }
-    });
-  };
-
-  const setCoordinates = (lat: number, lng: number) => {
-    setForm((current) => ({ ...current, latitude: lat.toFixed(6), longitude: lng.toFixed(6) }));
-  };
 
   const handleFiles = (files: FileList | null) => {
     if (!files) return;
@@ -194,26 +133,25 @@ export function PlaceForm({ initialPlace, isSaving, onCancel, onSubmit }: PlaceF
           <Textarea className="md:col-span-2" onChange={(event) => setFormValue("description", event.target.value)} placeholder="Description" value={String(form.description)} />
         </div>
 
-        {apiKey && isLoaded ? (
-          <div className="space-y-3">
-            <Autocomplete onLoad={(autocomplete) => { autocompleteRef.current = autocomplete; }} onPlaceChanged={handlePlaceChanged}>
-              <Input placeholder="Search with Google Places" />
-            </Autocomplete>
-            <GoogleMap center={selectedPosition} mapContainerClassName="h-[360px] w-full rounded-md border" onClick={handleMapClick} zoom={hasSelectedLocation ? 13 : 10}>
-              {hasSelectedLocation && <Marker position={selectedPosition} />}
-            </GoogleMap>
-            {hasSelectedLocation && <p className="text-sm text-muted-foreground">Vị trí đã được chọn trên bản đồ.</p>}
-          </div>
-        ) : (
-          <div className="rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
-            Google Maps is unavailable. Add VITE_GOOGLE_MAPS_API_KEY to frontend/.env to enable map selection.
-          </div>
-        )}
+        <PlaceLocationPicker
+          onChange={(location) => {
+            setForm((current) => ({
+              ...current,
+              address: location.address,
+              latitude: location.latitude ?? current.latitude,
+              longitude: location.longitude ?? current.longitude,
+            }));
+          }}
+          value={{
+            address: String(form.address),
+            latitude: form.latitude,
+            longitude: form.longitude,
+          }}
+        />
 
         <div className="grid gap-4">
           <Input onChange={(event) => setFormValue("address", event.target.value)} placeholder="Address" value={String(form.address)} />
         </div>
-        <Button className="gap-2" onClick={useCurrentLocation} type="button" variant="outline"><LocateFixed className="h-4 w-4" />Dùng vị trí hiện tại</Button>
 
         <div>
           <p className="font-medium">Images</p>
@@ -253,11 +191,6 @@ export function PlaceForm({ initialPlace, isSaving, onCancel, onSubmit }: PlaceF
   function setFormValue(key: keyof PlacePayload, value: PlacePayload[keyof PlacePayload]) {
     setForm((current) => ({ ...current, [key]: value }));
   }
-}
-
-interface AdminGalleryImage {
-  kind: "kept" | "new";
-  url: string;
 }
 
 function AdminImageGallery({

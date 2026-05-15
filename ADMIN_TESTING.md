@@ -31,23 +31,11 @@ cd frontend
 npm.cmd run dev
 ```
 
-## Google Maps for Admin Places
+## OpenStreetMap for Admin Places
 
-Admin Places create/edit uses Google Maps, Places Autocomplete, and reverse geocoding.
+Admin Places create/edit uses React Leaflet, OpenStreetMap tiles, and Nominatim search/reverse geocoding.
 
-1. Create or open a Google Cloud project.
-2. Enable these APIs:
-   - Maps JavaScript API
-   - Places API
-   - Geocoding API
-3. Create a browser API key and restrict it to your local/dev domains.
-4. Add the key to `frontend/.env`:
-
-```text
-VITE_GOOGLE_MAPS_API_KEY=your_google_maps_key_here
-```
-
-Do not commit a real Google Maps API key.
+No Google Maps API key or Google Cloud billing setup is required for Places. Nominatim is rate-limited, so the frontend debounces search requests and only reverse geocodes after selecting/clicking a location.
 
 ## Manual test checklist
 
@@ -58,7 +46,7 @@ Do not commit a real Google Maps API key.
 5. Search users, change role, lock/unlock a non-admin test user.
 6. Try locking/deleting your own admin account and confirm the API blocks it.
 7. Open `/admin/places`.
-8. Create a place: search with Google Autocomplete, pick a result, click the map to adjust the marker, upload multiple images, then save.
+8. Create a place: search with OpenStreetMap/Nominatim, pick a result, click the map to adjust the marker, upload multiple images, then save.
 9. Edit the place: confirm old images render, remove one old image, add a new upload, adjust the map marker, then save.
 10. Delete a test place.
 11. Open `/admin/posts`.
