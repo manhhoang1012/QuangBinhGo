@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { type ReviewPost } from "@/services/api";
@@ -36,7 +37,11 @@ export function SavedPostsPage() {
         {posts.map((post) => (
           <Card key={post.id}>
             <CardContent className="pt-5">
-              <p className="text-sm text-muted-foreground">{post.place.name}</p>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <AuthorLink user={post.author} />
+                <span>-</span>
+                <span>{post.place.name}</span>
+              </div>
               <h2 className="mt-2 text-xl font-semibold">{post.title}</h2>
               <p className="mt-2 text-sm text-muted-foreground">{post.content}</p>
             </CardContent>
@@ -44,5 +49,26 @@ export function SavedPostsPage() {
         ))}
       </div>
     </section>
+  );
+}
+
+function AuthorLink({ user }: { user: { avatar_url?: string | null; full_name: string; username?: string | null } }) {
+  const content = (
+    <>
+      <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-primary text-xs font-semibold text-primary-foreground transition-transform group-hover:scale-105">
+        {user.avatar_url ? <img alt={user.full_name} className="h-full w-full object-cover" src={user.avatar_url} /> : user.full_name.slice(0, 2).toUpperCase()}
+      </span>
+      <span className="font-medium text-foreground">{user.full_name}</span>
+    </>
+  );
+
+  if (!user.username) {
+    return <span className="inline-flex items-center gap-2">{content}</span>;
+  }
+
+  return (
+    <Link className="group inline-flex cursor-pointer items-center gap-2 hover:text-primary hover:underline" to={`/u/${user.username}`}>
+      {content}
+    </Link>
   );
 }
