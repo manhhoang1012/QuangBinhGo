@@ -5,10 +5,10 @@ import { RootLayout } from "@/layouts/RootLayout";
 import { AdminDashboardPage } from "@/pages/AdminDashboardPage";
 import { AdminCategoriesPage } from "@/pages/AdminCategoriesPage";
 import { AdminCommentsPage } from "@/pages/AdminCommentsPage";
-import { AdminPlaceholderPage } from "@/pages/AdminPlaceholderPage";
 import { AdminPlacesPage } from "@/pages/AdminPlacesPage";
 import { AdminPostsPage } from "@/pages/AdminPostsPage";
 import { AdminReviewsPage } from "@/pages/AdminReviewsPage";
+import { AdminSettingsPage } from "@/pages/AdminSettingsPage";
 import { AdminUsersPage } from "@/pages/AdminUsersPage";
 import { AiItineraryPage } from "@/pages/AiItineraryPage";
 import { AiSearchPage } from "@/pages/AiSearchPage";
@@ -178,11 +178,7 @@ const router = createBrowserRouter([
         path: "admin/settings",
         element: (
           <ProtectedAdminRoute>
-            <AdminPlaceholderPage
-              description="System settings UI placeholder."
-              endpoints={["GET /api/v1/admin/settings", "PATCH /api/v1/admin/settings"]}
-              title="Settings"
-            />
+            <AdminSettingsPage />
           </ProtectedAdminRoute>
         ),
       },

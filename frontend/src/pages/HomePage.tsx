@@ -8,14 +8,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { type Place, type ReviewPost } from "@/services/api";
 import { getPlaces } from "@/services/placeApi";
 import { getCommunityFeed } from "@/services/postApi";
+import { fallbackSettings, getPublicSettings, type SiteSettings } from "@/services/settingsApi";
 
 export function HomePage() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [posts, setPosts] = useState<ReviewPost[]>([]);
+  const [settings, setSettings] = useState<SiteSettings>(fallbackSettings);
 
   useEffect(() => {
     void getPlaces().then(setPlaces).catch(() => setPlaces([]));
     void getCommunityFeed("latest").then(setPosts).catch(() => setPosts([]));
+    void getPublicSettings().then(setSettings).catch(() => setSettings(fallbackSettings));
   }, []);
 
   const stats = [
@@ -31,16 +34,16 @@ export function HomePage() {
         <img
           alt="Quang Binh limestone landscape"
           className="absolute inset-0 h-full w-full object-cover"
-          src="https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1800&q=85"
+          src={settings.hero_background_image || fallbackSettings.hero_background_image || ""}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/35 to-transparent" />
         <div className="relative mx-auto flex min-h-[680px] max-w-7xl flex-col justify-center px-4 pb-20 pt-16 sm:px-6 lg:px-8">
           <Badge className="w-fit bg-white/15 text-white backdrop-blur">Quang Binh travel community</Badge>
           <h1 className="mt-5 max-w-4xl text-5xl font-semibold leading-tight text-white sm:text-7xl">
-            Caves, coastlines, and local stories in one trip.
+            {settings.hero_title}
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-white/85">
-            Plan meaningful days around Phong Nha, Dong Hoi, Nhat Le, and hidden local favorites with real traveler reviews.
+            {settings.hero_subtitle}
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link to="/places">
@@ -71,7 +74,7 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
+      {settings.show_featured_places && <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
         <div className="flex items-end justify-between gap-6">
           <div>
             <p className="text-sm font-medium uppercase tracking-wide text-accent">Featured places</p>
@@ -82,7 +85,7 @@ export function HomePage() {
           </Link>
         </div>
         <div className="mt-6 grid gap-5 md:grid-cols-3">
-          {places.slice(0, 3).map((place) => (
+          {places.slice(0, settings.featured_place_limit).map((place) => (
             <Link key={place.id} to={`/places/${place.id}`}>
               <Card className="h-full overflow-hidden transition-transform hover:-translate-y-1">
                   <img alt={place.name} className="h-56 w-full object-cover" src={place.images[0] ?? "https://placehold.co/1200x800?text=QuangBinhGo"} />
@@ -99,9 +102,9 @@ export function HomePage() {
             </Link>
           ))}
         </div>
-      </section>
+      </section>}
 
-      <section className="bg-muted/50 py-16">
+      {settings.show_latest_posts && <section className="bg-muted/50 py-16">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:px-8">
           <div>
             <p className="flex items-center gap-2 text-sm font-medium uppercase tracking-wide text-accent">
@@ -136,7 +139,7 @@ export function HomePage() {
             ))}
           </div>
         </div>
-      </section>
+      </section>}
     </>
   );
 }

@@ -16,9 +16,11 @@ from app.repositories.review_post_repository import ReviewPostRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.place import CategoryCreate, CategoryRead, CategoryUpdate, PlaceCreate, PlaceRead, PlaceUpdate
 from app.schemas.review_post import AdminCommentRead, AdminPlaceReviewRead, PostStatusUpdate, ReviewPostRead
+from app.schemas.site_settings import SettingsUploadResponse, SiteSettingsPayload
 from app.schemas.user import AdminUserRead, MessageResponse, UserRoleUpdate, UserStatusUpdate
 from app.services.place_service import PlaceService
 from app.services.review_post_service import ReviewPostService
+from app.services.settings_service import SettingsService
 from app.services.user_service import UserService
 
 router = APIRouter()
@@ -41,6 +43,27 @@ def get_target_user(user_id: int, db: Session = Depends(get_db)) -> User:
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
     return user
+
+
+@router.get("/settings", response_model=SiteSettingsPayload)
+def get_settings(_: User = Depends(require_admin), db: Session = Depends(get_db)) -> SiteSettingsPayload:
+    return SettingsService(db).get_payload()
+
+
+@router.put("/settings", response_model=SiteSettingsPayload)
+def update_settings(payload: SiteSettingsPayload, _: User = Depends(require_admin), db: Session = Depends(get_db)) -> SiteSettingsPayload:
+    return SettingsService(db).update(payload)
+
+
+@router.post("/settings/upload", response_model=SettingsUploadResponse)
+async def upload_setting_image(
+    upload_type: str = Query(default="settings", pattern="^(logo|favicon|hero|settings)$"),
+    file: UploadFile = File(...),
+    _: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> SettingsUploadResponse:
+    url = await SettingsService(db).upload_image(file, upload_type)
+    return SettingsUploadResponse(url=url)
 
 
 @router.post("/uploads/places")
