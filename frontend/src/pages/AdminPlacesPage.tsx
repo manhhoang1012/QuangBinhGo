@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { MapPin, Plus } from "lucide-react";
 
 import { PlaceForm } from "@/components/admin/PlaceForm";
 import { Button } from "@/components/ui/button";
@@ -114,7 +114,15 @@ export function AdminPlacesPage() {
               <div>
                 <p className="font-medium">{place.name}</p>
                 <p className="text-sm text-muted-foreground">{place.category} - {place.status ?? "active"} - {place.address}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{Number(place.latitude).toFixed(6)}, {Number(place.longitude).toFixed(6)}</p>
+                <a
+                  className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline"
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.latitude},${place.longitude}`)}`}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  <MapPin className="h-4 w-4" />
+                  Xem trên bản đồ
+                </a>
                 <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{place.description}</p>
               </div>
               <div className="flex flex-wrap gap-2">

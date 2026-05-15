@@ -49,6 +49,7 @@ export function PlaceForm({ initialPlace, isSaving, onCancel, onSubmit }: PlaceF
   const [isUploading, setIsUploading] = useState(false);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const newImagesRef = useRef<PreviewImage[]>([]);
+  const hasSelectedLocation = Boolean(form.latitude && form.longitude);
 
   const selectedPosition = useMemo(() => {
     const lat = Number(form.latitude);
@@ -138,8 +139,12 @@ export function PlaceForm({ initialPlace, isSaving, onCancel, onSubmit }: PlaceF
 
   const submit = async () => {
     setFormError(null);
-    if (!form.name.trim() || !form.description.trim() || !form.category.trim() || !form.address.trim() || !form.latitude || !form.longitude) {
-      setFormError("Name, description, category, address, latitude, and longitude are required.");
+    if (!form.name.trim() || !form.description.trim() || !form.category.trim() || !form.address.trim()) {
+      setFormError("Name, description, category, and address are required.");
+      return;
+    }
+    if (!hasSelectedLocation) {
+      setFormError("Vui lòng chọn vị trí trên bản đồ.");
       return;
     }
 
@@ -174,9 +179,10 @@ export function PlaceForm({ initialPlace, isSaving, onCancel, onSubmit }: PlaceF
             <Autocomplete onLoad={(autocomplete) => { autocompleteRef.current = autocomplete; }} onPlaceChanged={handlePlaceChanged}>
               <Input placeholder="Search with Google Places" />
             </Autocomplete>
-            <GoogleMap center={selectedPosition} mapContainerClassName="h-[360px] w-full rounded-md border" onClick={handleMapClick} zoom={initialPlace ? 13 : 10}>
-              <Marker position={selectedPosition} />
+            <GoogleMap center={selectedPosition} mapContainerClassName="h-[360px] w-full rounded-md border" onClick={handleMapClick} zoom={hasSelectedLocation ? 13 : 10}>
+              {hasSelectedLocation && <Marker position={selectedPosition} />}
             </GoogleMap>
+            {hasSelectedLocation && <p className="text-sm text-muted-foreground">Vị trí đã được chọn trên bản đồ.</p>}
           </div>
         ) : (
           <div className="rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
@@ -184,12 +190,10 @@ export function PlaceForm({ initialPlace, isSaving, onCancel, onSubmit }: PlaceF
           </div>
         )}
 
-        <div className="grid gap-4 md:grid-cols-[1fr_160px_160px]">
+        <div className="grid gap-4">
           <Input onChange={(event) => setFormValue("address", event.target.value)} placeholder="Address" value={String(form.address)} />
-          <Input onChange={(event) => setFormValue("latitude", event.target.value)} placeholder="Latitude" value={String(form.latitude)} />
-          <Input onChange={(event) => setFormValue("longitude", event.target.value)} placeholder="Longitude" value={String(form.longitude)} />
         </div>
-        <Button className="gap-2" onClick={useCurrentLocation} type="button" variant="outline"><LocateFixed className="h-4 w-4" />Use current location</Button>
+        <Button className="gap-2" onClick={useCurrentLocation} type="button" variant="outline"><LocateFixed className="h-4 w-4" />Dùng vị trí hiện tại</Button>
 
         <div>
           <p className="font-medium">Images</p>
