@@ -38,6 +38,30 @@ class PostSave(TimestampMixin, Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
 
 
+class UserFollow(TimestampMixin, Base):
+    __tablename__ = "user_follows"
+    __table_args__ = (UniqueConstraint("follower_id", "following_id", name="uq_user_follows_follower_following"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    follower_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    following_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+
+
+class PostReport(TimestampMixin, Base):
+    __tablename__ = "post_reports"
+    __table_args__ = (UniqueConstraint("post_id", "user_id", name="uq_post_reports_post_user"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("review_posts.id", ondelete="CASCADE"), index=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    reason: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="open", nullable=False)
+
+    reporter = relationship("User")
+    post = relationship("ReviewPost")
+
+
 class PostComment(TimestampMixin, Base):
     __tablename__ = "post_comments"
 

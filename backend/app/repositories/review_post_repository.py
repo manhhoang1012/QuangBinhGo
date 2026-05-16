@@ -3,8 +3,8 @@ from collections.abc import Sequence
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.review_post import PlaceReview, PostComment, PostLike, PostSave, ReviewPost
-from app.schemas.review_post import CommentCreate, ReviewPostCreate
+from app.models.review_post import PlaceReview, PostComment, PostLike, PostReport, PostSave, ReviewPost, UserFollow
+from app.schemas.review_post import CommentCreate, ReviewPostCreate, ReviewPostUpdate
 
 
 class ReviewPostRepository:
@@ -37,6 +37,7 @@ class ReviewPostRepository:
         *,
         user_id: int | None = None,
         saved_by_user_id: int | None = None,
+        include_hidden: bool = False,
         sort: str = "latest",
         skip: int = 0,
         limit: int = 20,
@@ -59,6 +60,9 @@ class ReviewPostRepository:
             .limit(limit)
         )
 
+        if not include_hidden:
+            statement = statement.where(ReviewPost.status == "visible")
+
         if user_id is not None:
             statement = statement.where(ReviewPost.user_id == user_id)
 
@@ -71,6 +75,18 @@ class ReviewPostRepository:
             statement = statement.order_by(ReviewPost.created_at.desc())
 
         return self.db.execute(statement).all()
+
+    def update(self, post: ReviewPost, post_update: ReviewPostUpdate) -> ReviewPost:
+        for field, value in post_update.model_dump(exclude_unset=True).items():
+            setattr(post, field, value)
+        self.db.add(post)
+        self.db.commit()
+        self.db.refresh(post)
+        return self.get(post.id) or post
+
+    def delete_post(self, post: ReviewPost) -> None:
+        self.db.delete(post)
+        self.db.commit()
 
     def get_many_with_counts(self, post_ids: list[int]) -> dict[int, tuple[ReviewPost, int, int, int]]:
         if not post_ids:
@@ -162,11 +178,49 @@ class ReviewPostRepository:
         )
         return self.db.scalars(statement).all()
 
+    def update_comment(self, comment: PostComment, content: str) -> PostComment:
+        comment.content = content
+        self.db.add(comment)
+        self.db.commit()
+        self.db.refresh(comment)
+        return self.get_comment(comment.id) or comment
+
+    def delete_comment(self, comment: PostComment) -> None:
+        self.db.delete(comment)
+        self.db.commit()
+
     def count_likes(self, post_id: int) -> int:
         return self.db.scalar(select(func.count(PostLike.id)).where(PostLike.post_id == post_id)) or 0
 
     def count_saves(self, post_id: int) -> int:
         return self.db.scalar(select(func.count(PostSave.id)).where(PostSave.post_id == post_id)) or 0
+
+    def count_comments(self, post_id: int) -> int:
+        return self.db.scalar(select(func.count(PostComment.id)).where(PostComment.post_id == post_id)) or 0
+
+    def get_follow(self, *, follower_id: int, following_id: int) -> UserFollow | None:
+        return self.db.scalar(select(UserFollow).where(UserFollow.follower_id == follower_id, UserFollow.following_id == following_id))
+
+    def add_follow(self, *, follower_id: int, following_id: int) -> UserFollow:
+        follow = UserFollow(follower_id=follower_id, following_id=following_id)
+        self.db.add(follow)
+        self.db.commit()
+        self.db.refresh(follow)
+        return follow
+
+    def remove_follow(self, *, follower_id: int, following_id: int) -> None:
+        self.db.execute(delete(UserFollow).where(UserFollow.follower_id == follower_id, UserFollow.following_id == following_id))
+        self.db.commit()
+
+    def create_report(self, *, post_id: int, user_id: int, reason: str, description: str | None) -> PostReport:
+        existing = self.db.scalar(select(PostReport).where(PostReport.post_id == post_id, PostReport.user_id == user_id))
+        if existing:
+            return existing
+        report = PostReport(post_id=post_id, user_id=user_id, reason=reason, description=description)
+        self.db.add(report)
+        self.db.commit()
+        self.db.refresh(report)
+        return report
 
     def list_place_reviews_by_user(self, *, user_id: int, skip: int = 0, limit: int = 20) -> Sequence[PlaceReview]:
         statement = (

@@ -13,8 +13,34 @@ class ReviewPostCreate(BaseModel):
     images: list[str] = Field(default_factory=list)
 
 
+class ReviewPostUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    content: str | None = Field(default=None, min_length=1)
+    place_id: int | None = Field(default=None, gt=0)
+    images: list[str] | None = Field(default=None, max_length=10)
+
+
 class CommentCreate(BaseModel):
     content: str = Field(min_length=1, max_length=2000)
+
+
+class CommentUpdate(BaseModel):
+    content: str = Field(min_length=1, max_length=2000)
+
+
+class PostReportCreate(BaseModel):
+    reason: str = Field(min_length=1, max_length=120)
+    description: str | None = Field(default=None, max_length=1000)
+
+
+class PostReportRead(BaseModel):
+    id: int
+    reason: str
+    description: str | None = None
+    status: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class CommentRead(BaseModel):
@@ -55,12 +81,23 @@ class PostInteractionResponse(BaseModel):
 class PlaceReviewRead(BaseModel):
     id: int
     place: PlaceRead
+    author: UserRead
     rating: int
     content: str
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PlaceReviewCreate(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    content: str = Field(min_length=1, max_length=2000)
+
+
+class PlaceReviewUpdate(BaseModel):
+    rating: int | None = Field(default=None, ge=1, le=5)
+    content: str | None = Field(default=None, min_length=1, max_length=2000)
 
 
 class PostStatusUpdate(BaseModel):
@@ -78,4 +115,4 @@ class AdminCommentRead(BaseModel):
 
 
 class AdminPlaceReviewRead(PlaceReviewRead):
-    author: UserRead
+    pass

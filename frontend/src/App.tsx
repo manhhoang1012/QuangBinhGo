@@ -23,6 +23,7 @@ import { NotFoundPage } from "@/pages/NotFoundPage";
 import { OAuthCallbackPage } from "@/pages/OAuthCallbackPage";
 import { PlaceDetailPage } from "@/pages/PlaceDetailPage";
 import { PlacesListPage } from "@/pages/PlacesListPage";
+import { PostDetailPage } from "@/pages/PostDetailPage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { PublicProfilePage } from "@/pages/PublicProfilePage";
 import { ResetPasswordPage } from "@/pages/ResetPasswordPage";
@@ -53,6 +54,10 @@ const router = createBrowserRouter([
       {
         path: "community/new",
         element: <CreatePostPage />,
+      },
+      {
+        path: "community/:postId",
+        element: <PostDetailPage />,
       },
       {
         path: "profile",

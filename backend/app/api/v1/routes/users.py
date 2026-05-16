@@ -111,6 +111,28 @@ def read_public_profile(
     return user_service.get_public_profile(username)
 
 
+@router.post("/{username}/follow")
+def follow_public_user(
+    username: str,
+    current_user: User = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service),
+    review_post_service: ReviewPostService = Depends(get_review_post_service),
+) -> dict[str, bool]:
+    target = user_service.get_public_profile(username)
+    return review_post_service.follow_user(current_user=current_user, target_user=target)
+
+
+@router.delete("/{username}/follow")
+def unfollow_public_user(
+    username: str,
+    current_user: User = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service),
+    review_post_service: ReviewPostService = Depends(get_review_post_service),
+) -> dict[str, bool]:
+    target = user_service.get_public_profile(username)
+    return review_post_service.unfollow_user(current_user=current_user, target_user=target)
+
+
 @router.get("/{username}/posts", response_model=list[ReviewPostRead])
 def list_public_user_posts(
     username: str,

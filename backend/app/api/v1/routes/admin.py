@@ -224,7 +224,7 @@ def admin_list_posts(
     _: User = Depends(require_moderator_or_admin),
     db: Session = Depends(get_db),
 ):
-    rows = ReviewPostRepository(db).list_with_counts(skip=skip, limit=limit)
+    rows = ReviewPostRepository(db).list_with_counts(skip=skip, limit=limit, include_hidden=True)
     posts = post_service(db)._rows_to_reads(rows)
     if search:
         q = search.lower()

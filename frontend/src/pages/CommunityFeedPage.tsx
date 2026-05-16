@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bookmark, Heart, MessageCircle, Plus } from "lucide-react";
+import { Bookmark, Flag, Heart, MessageCircle, Plus, Share2, UserPlus } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,10 @@ import {
   getLikedPostIds,
   getSavedPostIds,
   likePost,
+  followUser,
+  reportPost,
   savePost,
+  sharePost,
   type FeedSort,
   unlikePost,
   unsavePost,
@@ -51,11 +54,12 @@ export function CommunityFeedPage() {
     try {
       if (likedPostIds.includes(postId)) {
         await unlikePost(postId);
+        setLikedPostIds((current) => current.filter((id) => id !== postId));
       } else {
         await likePost(postId);
+        setLikedPostIds((current) => [...current, postId]);
       }
       setPosts(await getCommunityFeed(sort));
-      setLikedPostIds(getLikedPostIds());
     } catch {
       setError("Please sign in before liking posts.");
     }
@@ -65,11 +69,12 @@ export function CommunityFeedPage() {
     try {
       if (savedPostIds.includes(postId)) {
         await unsavePost(postId);
+        setSavedPostIds((current) => current.filter((id) => id !== postId));
       } else {
         await savePost(postId);
+        setSavedPostIds((current) => [...current, postId]);
       }
       setPosts(await getCommunityFeed(sort));
-      setSavedPostIds(getSavedPostIds());
     } catch {
       setError("Please sign in before saving posts.");
     }
@@ -101,6 +106,34 @@ export function CommunityFeedPage() {
     }
   };
 
+  const handleShare = async (postId: number) => {
+    try {
+      await sharePost(postId);
+    } catch {
+      setError("Không thể chia sẻ bài viết.");
+    }
+  };
+
+  const handleFollow = async (username?: string | null) => {
+    if (!username) return;
+    try {
+      await followUser(username);
+    } catch {
+      setError("Vui lòng đăng nhập trước khi theo dõi người dùng.");
+    }
+  };
+
+  const handleReport = async (postId: number) => {
+    const reason = window.prompt("Lý do báo cáo bài viết?");
+    if (!reason?.trim()) return;
+    try {
+      await reportPost(postId, reason.trim());
+      window.alert("Đã gửi báo cáo. Cảm ơn bạn đã giúp cộng đồng an toàn hơn.");
+    } catch {
+      setError("Không thể gửi báo cáo bài viết.");
+    }
+  };
+
   return (
     <section className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -129,16 +162,26 @@ export function CommunityFeedPage() {
         <div className="mt-8 grid gap-5">
           {posts.map((post) => (
           <Card key={post.id} className="overflow-hidden">
-            <img alt={post.title} className="h-72 w-full object-cover" src={post.images[0] ?? post.place.images[0] ?? "https://placehold.co/1200x800?text=QuangBinhGo"} />
+            <Link to={`/community/${post.id}`}>
+              <img alt={post.title} className="h-72 w-full object-cover" src={post.images[0] ?? post.place.images[0] ?? "https://placehold.co/1200x800?text=QuangBinhGo"} />
+            </Link>
             <CardContent className="pt-5">
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                <AuthorLink user={post.author} />
-                <span>-</span>
-                <span>{post.place.name}</span>
-                <span>-</span>
-                <span>{new Date(post.created_at).toLocaleDateString()}</span>
+              <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+                <div className="flex items-center gap-3">
+                  <AuthorLink user={post.author} />
+                  <span>-</span>
+                  <span>{post.place.name}</span>
+                  <span>-</span>
+                  <span>{new Date(post.created_at).toLocaleDateString()}</span>
+                </div>
+                <button className="inline-flex items-center gap-1 hover:text-primary" onClick={() => void handleFollow(post.author.username)}>
+                  <UserPlus className="h-4 w-4" />
+                  Theo dõi
+                </button>
               </div>
-              <h2 className="mt-2 text-2xl font-semibold">{post.title}</h2>
+              <Link to={`/community/${post.id}`}>
+                <h2 className="mt-2 text-2xl font-semibold hover:text-primary">{post.title}</h2>
+              </Link>
               <p className="mt-3 leading-7 text-muted-foreground">{post.content}</p>
               <div className="mt-5 flex flex-wrap gap-3 text-sm text-muted-foreground">
                 <button className="flex items-center gap-1.5" onClick={() => void handleLikeToggle(post.id)}>
@@ -150,6 +193,8 @@ export function CommunityFeedPage() {
                   <Bookmark className={`h-4 w-4 ${savedPostIds.includes(post.id) ? "fill-primary text-primary" : ""}`} />
                   {post.saves_count}
                 </button>
+                <button className="flex items-center gap-1.5" onClick={() => void handleShare(post.id)}><Share2 className="h-4 w-4" />Chia sẻ</button>
+                <button className="flex items-center gap-1.5" onClick={() => void handleReport(post.id)}><Flag className="h-4 w-4" />Báo cáo</button>
               </div>
               {commentsByPost[post.id] && (
                 <div className="mt-5 space-y-3 border-t pt-4">
