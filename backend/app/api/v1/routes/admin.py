@@ -307,8 +307,17 @@ def admin_delete_review(review_id: int, _: User = Depends(require_moderator_or_a
     review = db.get(PlaceReview, review_id)
     if not review:
         raise HTTPException(status_code=404, detail="Review not found.")
+    place = db.get(Place, review.place_id)
     db.delete(review)
     db.commit()
+    if place:
+        average_rating, review_count = db.execute(
+            select(func.avg(PlaceReview.rating), func.count(PlaceReview.id)).where(PlaceReview.place_id == place.id)
+        ).one()
+        place.rating_avg = average_rating or 0
+        place.review_count = int(review_count or 0)
+        db.add(place)
+        db.commit()
     return MessageResponse(message="Review deleted successfully.")
 
 

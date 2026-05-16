@@ -4,13 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import require_admin
+from app.api.dependencies import get_current_user, require_admin
 from app.db.session import get_db
 from app.models.place import Place
 from app.models.review_post import PlaceReview
 from app.models.user import User
 from app.repositories.place_repository import PlaceRepository
 from app.schemas.place import PlaceCreate, PlaceDetailRead, PlaceRead, PlaceUpdate
+from app.schemas.review_post import PlaceReviewCreate, PlaceReviewRead, PlaceReviewUpdate
 from app.services.place_service import PlaceService
 
 router = APIRouter()
@@ -55,6 +56,24 @@ def build_place_read(
     data.cover_image = place.cover_image
     data.distance_km = round(distance_km, 2) if distance_km is not None else None
     return data
+
+
+def get_public_place_or_404(db: Session, place_id: int) -> Place:
+    place = db.get(Place, place_id)
+    if not place or place.status not in PUBLIC_STATUSES:
+        raise HTTPException(status_code=404, detail="Place not found.")
+    return place
+
+
+def recalculate_place_rating(db: Session, place: Place) -> None:
+    average_rating, review_count = db.execute(
+        select(func.avg(PlaceReview.rating), func.count(PlaceReview.id)).where(PlaceReview.place_id == place.id)
+    ).one()
+    place.rating_avg = average_rating or 0
+    place.review_count = int(review_count or 0)
+    db.add(place)
+    db.commit()
+    db.refresh(place)
 
 
 @router.get("", response_model=list[PlaceRead])
@@ -138,6 +157,86 @@ def semantic_search_places(q: str = Query(..., min_length=1), limit: int = Query
     ).all()
     review_stats = get_review_stats(db, [place.id for place in places])
     return [build_place_read(place, review_stats=review_stats) for place in places]
+
+
+@router.get("/{place_id}/reviews", response_model=list[PlaceReviewRead])
+def list_place_reviews(
+    place_id: int,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=100),
+    db: Session = Depends(get_db),
+) -> list[PlaceReview]:
+    get_public_place_or_404(db, place_id)
+    return list(
+        db.scalars(
+            select(PlaceReview)
+            .where(PlaceReview.place_id == place_id)
+            .order_by(PlaceReview.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+        ).all()
+    )
+
+
+@router.post("/{place_id}/reviews", response_model=PlaceReviewRead, status_code=status.HTTP_201_CREATED)
+def create_place_review(
+    place_id: int,
+    payload: PlaceReviewCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> PlaceReview:
+    place = get_public_place_or_404(db, place_id)
+    existing = db.scalar(select(PlaceReview).where(PlaceReview.place_id == place_id, PlaceReview.user_id == current_user.id))
+    if existing:
+        raise HTTPException(status_code=409, detail="You already reviewed this place.")
+    review = PlaceReview(place_id=place_id, user_id=current_user.id, rating=payload.rating, content=payload.content)
+    db.add(review)
+    db.commit()
+    db.refresh(review)
+    recalculate_place_rating(db, place)
+    return review
+
+
+@router.patch("/{place_id}/reviews/{review_id}", response_model=PlaceReviewRead)
+def update_place_review(
+    place_id: int,
+    review_id: int,
+    payload: PlaceReviewUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> PlaceReview:
+    place = get_public_place_or_404(db, place_id)
+    review = db.get(PlaceReview, review_id)
+    if not review or review.place_id != place_id:
+        raise HTTPException(status_code=404, detail="Review not found.")
+    if review.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only update your own review.")
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(review, field, value)
+    db.add(review)
+    db.commit()
+    db.refresh(review)
+    recalculate_place_rating(db, place)
+    return review
+
+
+@router.delete("/{place_id}/reviews/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_place_review(
+    place_id: int,
+    review_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    place = get_public_place_or_404(db, place_id)
+    review = db.get(PlaceReview, review_id)
+    if not review or review.place_id != place_id:
+        raise HTTPException(status_code=404, detail="Review not found.")
+    if review.user_id != current_user.id and current_user.role not in {"moderator", "admin"}:
+        raise HTTPException(status_code=403, detail="You can only delete your own review.")
+    db.delete(review)
+    db.commit()
+    recalculate_place_rating(db, place)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/{slug_or_id}", response_model=PlaceDetailRead)

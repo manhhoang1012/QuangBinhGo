@@ -109,6 +109,16 @@ export interface Comment {
   created_at: string;
 }
 
+export interface PlaceReview {
+  id: number;
+  place: Place;
+  author: User;
+  rating: number;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Category {
   id: number;
   name: string;
