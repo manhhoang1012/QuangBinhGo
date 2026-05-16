@@ -121,7 +121,7 @@ const router = createBrowserRouter([
       {
         path: "admin",
         element: (
-          <ProtectedAdminRoute>
+          <ProtectedAdminRoute allowedRoles={["admin"]}>
             <AdminDashboardPage />
           </ProtectedAdminRoute>
         ),
@@ -129,7 +129,7 @@ const router = createBrowserRouter([
       {
         path: "admin/users",
         element: (
-          <ProtectedAdminRoute>
+          <ProtectedAdminRoute allowedRoles={["admin"]}>
             <AdminUsersPage />
           </ProtectedAdminRoute>
         ),
@@ -137,7 +137,7 @@ const router = createBrowserRouter([
       {
         path: "admin/places",
         element: (
-          <ProtectedAdminRoute>
+          <ProtectedAdminRoute allowedRoles={["admin"]}>
             <AdminPlacesPage />
           </ProtectedAdminRoute>
         ),
@@ -169,7 +169,7 @@ const router = createBrowserRouter([
       {
         path: "admin/categories",
         element: (
-          <ProtectedAdminRoute>
+          <ProtectedAdminRoute allowedRoles={["admin"]}>
             <AdminCategoriesPage />
           </ProtectedAdminRoute>
         ),
@@ -177,7 +177,7 @@ const router = createBrowserRouter([
       {
         path: "admin/settings",
         element: (
-          <ProtectedAdminRoute>
+          <ProtectedAdminRoute allowedRoles={["admin"]}>
             <AdminSettingsPage />
           </ProtectedAdminRoute>
         ),

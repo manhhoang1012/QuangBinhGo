@@ -18,6 +18,8 @@ const adminNavItems = [
 
 export function AdminLayout({ children, user }: { children: React.ReactNode; user: User | null }) {
   const navigate = useNavigate();
+  const visibleNavItems = adminNavItems.filter((item) => item.roles.includes(user?.role ?? "user"));
+  const homePath = visibleNavItems[0]?.to ?? "/";
 
   const handleLogout = async () => {
     await logout();
@@ -28,11 +30,11 @@ export function AdminLayout({ children, user }: { children: React.ReactNode; use
     <div className="min-h-screen bg-muted/30 lg:grid lg:grid-cols-[260px_1fr]">
       <aside className="border-b bg-background lg:min-h-screen lg:border-b-0 lg:border-r">
         <div className="flex h-16 items-center justify-between px-4 lg:h-auto lg:block lg:px-5 lg:py-6">
-          <Link className="font-semibold" to="/admin">QuangBinhGo Admin</Link>
+          <Link className="font-semibold" to={homePath}>QuangBinhGo Admin</Link>
           <Link className="text-sm text-muted-foreground hover:text-foreground lg:hidden" to="/">Public site</Link>
         </div>
         <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:block lg:space-y-1 lg:overflow-visible lg:px-3">
-          {adminNavItems.filter((item) => item.roles.includes(user?.role ?? "user")).map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             return (
               <NavLink
