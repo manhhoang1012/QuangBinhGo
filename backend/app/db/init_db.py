@@ -49,7 +49,21 @@ def ensure_admin_content_columns() -> None:
     inspector = inspect(engine)
     tables = inspector.get_table_names()
     table_columns = {
-        "places": {"status": "VARCHAR(30) DEFAULT 'active' NOT NULL"},
+        "places": {
+            "status": "VARCHAR(30) DEFAULT 'active' NOT NULL",
+            "slug": "VARCHAR(255)",
+            "tags": "JSON",
+            "videos": "JSON",
+            "opening_hours": "VARCHAR(255)",
+            "ticket_price": "VARCHAR(255)",
+            "price_min": "NUMERIC(12, 2)",
+            "price_max": "NUMERIC(12, 2)",
+            "contact_phone": "VARCHAR(50)",
+            "contact_email": "VARCHAR(255)",
+            "website_url": "VARCHAR(500)",
+            "facebook_url": "VARCHAR(500)",
+            "review_count": "INTEGER DEFAULT 0 NOT NULL",
+        },
         "review_posts": {"status": "VARCHAR(30) DEFAULT 'visible' NOT NULL"},
     }
 
@@ -61,3 +75,7 @@ def ensure_admin_content_columns() -> None:
             for column_name, column_type in columns.items():
                 if column_name not in existing_columns:
                     connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"))
+        if "places" in tables:
+            connection.execute(text("UPDATE places SET tags = '[]' WHERE tags IS NULL"))
+            connection.execute(text("UPDATE places SET videos = '[]' WHERE videos IS NULL"))
+            connection.execute(text("UPDATE places SET review_count = 0 WHERE review_count IS NULL"))

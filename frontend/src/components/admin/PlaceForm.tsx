@@ -32,7 +32,18 @@ const emptyPlaceForm: PlacePayload = {
   latitude: "",
   longitude: "",
   images: [],
+  videos: [],
+  tags: [],
+  opening_hours: "",
+  ticket_price: "",
+  price_min: null,
+  price_max: null,
+  contact_phone: "",
+  contact_email: "",
+  website_url: "",
+  facebook_url: "",
   rating_avg: 4.5,
+  review_count: 0,
   status: "active",
 };
 
@@ -131,6 +142,16 @@ export function PlaceForm({ initialPlace, isSaving, onCancel, onSubmit }: PlaceF
           </select>
           <Input onChange={(event) => setFormValue("rating_avg", Number(event.target.value))} placeholder="Rating" type="number" value={String(form.rating_avg)} />
           <Textarea className="md:col-span-2" onChange={(event) => setFormValue("description", event.target.value)} placeholder="Description" value={String(form.description)} />
+          <Input onChange={(event) => setFormValue("tags", splitList(event.target.value))} placeholder="Tags, comma separated" value={(form.tags ?? []).join(", ")} />
+          <Input onChange={(event) => setFormValue("videos", splitList(event.target.value))} placeholder="Video URLs, comma separated" value={(form.videos ?? []).join(", ")} />
+          <Input onChange={(event) => setFormValue("opening_hours", event.target.value)} placeholder="Opening hours" value={String(form.opening_hours ?? "")} />
+          <Input onChange={(event) => setFormValue("ticket_price", event.target.value)} placeholder="Ticket price" value={String(form.ticket_price ?? "")} />
+          <Input onChange={(event) => setFormValue("price_min", event.target.value ? Number(event.target.value) : null)} placeholder="Min price" type="number" value={String(form.price_min ?? "")} />
+          <Input onChange={(event) => setFormValue("price_max", event.target.value ? Number(event.target.value) : null)} placeholder="Max price" type="number" value={String(form.price_max ?? "")} />
+          <Input onChange={(event) => setFormValue("contact_phone", event.target.value)} placeholder="Contact phone" value={String(form.contact_phone ?? "")} />
+          <Input onChange={(event) => setFormValue("contact_email", event.target.value)} placeholder="Contact email" type="email" value={String(form.contact_email ?? "")} />
+          <Input onChange={(event) => setFormValue("website_url", event.target.value)} placeholder="Website URL" value={String(form.website_url ?? "")} />
+          <Input onChange={(event) => setFormValue("facebook_url", event.target.value)} placeholder="Facebook URL" value={String(form.facebook_url ?? "")} />
         </div>
 
         <PlaceLocationPicker
@@ -191,6 +212,10 @@ export function PlaceForm({ initialPlace, isSaving, onCancel, onSubmit }: PlaceF
   function setFormValue(key: keyof PlacePayload, value: PlacePayload[keyof PlacePayload]) {
     setForm((current) => ({ ...current, [key]: value }));
   }
+}
+
+function splitList(value: string) {
+  return value.split(",").map((item) => item.trim()).filter(Boolean);
 }
 
 function AdminImageGallery({
@@ -266,7 +291,18 @@ function placeToForm(place?: Place | null): PlacePayload {
     latitude: place.latitude,
     longitude: place.longitude,
     images: place.images,
+    videos: place.videos ?? [],
+    tags: place.tags ?? [],
+    opening_hours: place.opening_hours ?? "",
+    ticket_price: place.ticket_price ?? "",
+    price_min: place.price_min ?? null,
+    price_max: place.price_max ?? null,
+    contact_phone: place.contact_phone ?? "",
+    contact_email: place.contact_email ?? "",
+    website_url: place.website_url ?? "",
+    facebook_url: place.facebook_url ?? "",
     rating_avg: place.rating_avg,
+    review_count: place.review_count ?? 0,
     status: place.status ?? "active",
   };
 }

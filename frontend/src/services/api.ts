@@ -59,14 +59,31 @@ export interface User {
 export interface Place {
   id: number;
   name: string;
+  slug?: string | null;
   description: string;
   category: string;
+  tags?: string[];
   status?: string;
   address: string;
   latitude: string | number;
   longitude: string | number;
   images: string[];
+  videos?: string[];
+  opening_hours?: string | null;
+  ticket_price?: string | null;
+  price_min?: string | number | null;
+  price_max?: string | number | null;
+  contact_phone?: string | null;
+  contact_email?: string | null;
+  website_url?: string | null;
+  facebook_url?: string | null;
   rating_avg: string | number;
+  review_count?: number;
+  cover_image?: string | null;
+  distance_km?: number | null;
+  related_places?: Place[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ReviewPost {
