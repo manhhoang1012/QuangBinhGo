@@ -5,12 +5,29 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { generateItinerary } from "@/services/aiApi";
 
+interface ItineraryScheduleItem {
+  time: string;
+  title: string;
+  description: string;
+}
+
+interface ItineraryDay {
+  day: number;
+  theme: string;
+  schedule: ItineraryScheduleItem[];
+}
+
+interface ItineraryResponse {
+  overview: string;
+  itinerary: ItineraryDay[];
+}
+
 export function AiItineraryPage() {
   const [days, setDays] = useState(3);
   const [interests, setInterests] = useState("caves, beach, food");
   const [travelStyle, setTravelStyle] = useState("relaxed");
   const [budget, setBudget] = useState("mid-range");
-  const [itinerary, setItinerary] = useState<any>(null);
+  const [itinerary, setItinerary] = useState<ItineraryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleGenerate = async () => {
@@ -41,12 +58,12 @@ export function AiItineraryPage() {
       {itinerary && (
         <div className="mt-8 grid gap-4">
           <p className="text-muted-foreground">{itinerary.overview}</p>
-          {itinerary.itinerary.map((day: any) => (
+          {itinerary.itinerary.map((day) => (
             <Card key={day.day}>
               <CardContent className="pt-5">
                 <h2 className="text-xl font-semibold">{day.theme}</h2>
                 <div className="mt-4 space-y-3">
-                  {day.schedule.map((item: any) => (
+                  {day.schedule.map((item) => (
                     <p className="text-sm text-muted-foreground" key={`${day.day}-${item.time}`}>
                       <span className="font-medium text-foreground">{item.time}</span> {item.title}: {item.description}
                     </p>

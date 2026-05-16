@@ -1,7 +1,7 @@
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -57,16 +57,11 @@ def update_settings(payload: SiteSettingsPayload, _: User = Depends(require_admi
 
 @router.post("/settings/upload", response_model=SettingsUploadResponse)
 async def upload_setting_image(
-    request: Request,
     upload_type: str = Query(...),
     file: UploadFile = File(...),
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> SettingsUploadResponse:
-    print("CONTENT TYPE:", request.headers.get("content-type"))
-    print("UPLOAD TYPE:", upload_type)
-    print("FILE:", file.filename, file.content_type)
-
     allowed_types = {"logo", "favicon", "hero", "hero_image", "hero_background"}
     if upload_type not in allowed_types:
         raise HTTPException(status_code=400, detail=f"Invalid upload_type: {upload_type}")

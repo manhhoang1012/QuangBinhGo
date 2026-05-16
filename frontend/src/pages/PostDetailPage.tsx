@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Bookmark, Flag, Heart, MessageCircle, Share2, Trash2 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -22,7 +22,7 @@ export function PostDetailPage() {
 
   const numericPostId = Number(postId);
 
-  const loadPost = async () => {
+  const loadPost = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -34,11 +34,11 @@ export function PostDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [numericPostId]);
 
   useEffect(() => {
     if (Number.isFinite(numericPostId)) void loadPost();
-  }, [numericPostId]);
+  }, [loadPost, numericPostId]);
 
   const handleComment = async () => {
     if (!commentText.trim()) return;
@@ -60,6 +60,28 @@ export function PostDetailPage() {
     } catch {
       setError("Bạn chỉ có thể xóa bài viết của chính mình.");
     }
+  };
+
+  const handleLike = async () => {
+    if (!post) return;
+    if (liked) {
+      await unlikePost(post.id);
+    } else {
+      await likePost(post.id);
+    }
+    setLiked(!liked);
+    setPost(await getReviewPost(post.id));
+  };
+
+  const handleSave = async () => {
+    if (!post) return;
+    if (saved) {
+      await unsavePost(post.id);
+    } else {
+      await savePost(post.id);
+    }
+    setSaved(!saved);
+    setPost(await getReviewPost(post.id));
   };
 
   if (isLoading) return <div className="mx-auto max-w-4xl px-4 py-10 text-muted-foreground">Đang tải bài viết...</div>;
@@ -85,12 +107,12 @@ export function PostDetailPage() {
             </div>
           )}
           <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-            <button className="flex items-center gap-1.5" onClick={async () => { liked ? await unlikePost(post.id) : await likePost(post.id); setLiked(!liked); setPost(await getReviewPost(post.id)); }}>
+            <button className="flex items-center gap-1.5" onClick={() => void handleLike()}>
               <Heart className={`h-4 w-4 ${liked ? "fill-destructive text-destructive" : ""}`} />
               {post.likes_count}
             </button>
             <span className="flex items-center gap-1.5"><MessageCircle className="h-4 w-4" />{post.comments_count}</span>
-            <button className="flex items-center gap-1.5" onClick={async () => { saved ? await unsavePost(post.id) : await savePost(post.id); setSaved(!saved); setPost(await getReviewPost(post.id)); }}>
+            <button className="flex items-center gap-1.5" onClick={() => void handleSave()}>
               <Bookmark className={`h-4 w-4 ${saved ? "fill-primary text-primary" : ""}`} />
               {post.saves_count}
             </button>

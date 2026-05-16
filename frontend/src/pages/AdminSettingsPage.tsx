@@ -180,7 +180,6 @@ function Toggle({ checked, label, onChange }: { checked: boolean; label: string;
 
 function ImageInput({ field, label, onUpload, url }: { field: UploadField; label: string; onUpload: (file: File | undefined, field: UploadField) => void; url?: string | null }) {
   const handleChange = (file: File | undefined) => {
-    console.log("SELECTED FILE:", file);
     if (file) {
       void onUpload(file, field);
     }

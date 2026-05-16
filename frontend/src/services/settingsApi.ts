@@ -86,12 +86,6 @@ export async function uploadSettingImage(file: File, type: "logo" | "favicon" | 
   const formData = new FormData();
   formData.append("file", file);
 
-  console.log("selectedFile:", file);
-  console.log("is File:", file instanceof File);
-  for (const pair of formData.entries()) {
-    console.log("FORMDATA:", pair[0], pair[1]);
-  }
-
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
   const token = authStorage.getToken();
   const response = await axios.post<{ url: string; image_url?: string }>(

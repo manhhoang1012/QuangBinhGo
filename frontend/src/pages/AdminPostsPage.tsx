@@ -28,7 +28,7 @@ export function AdminPostsPage() {
       }
     };
     void loadPosts();
-  }, []);
+  }, [query]);
 
   const loadPosts = async () => {
     setIsLoading(true);
@@ -67,7 +67,7 @@ export function AdminPostsPage() {
 
   return (
     <section>
-      <AdminPageHeader description="Review community posts. Hide/delete moderation endpoints are pending backend support." title="Social posts" />
+      <AdminPageHeader description="Review, hide, show, or delete community posts reported by users." title="Social posts" />
       {notice && <div className="mt-6 rounded-lg border bg-accent/10 p-4 text-sm text-accent">{notice}</div>}
       {error && <div className="mt-6 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">{error}</div>}
       <div className="mt-6 flex gap-2">
