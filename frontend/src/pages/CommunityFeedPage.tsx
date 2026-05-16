@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Bookmark, Flag, Heart, MessageCircle, Plus, Share2, UserPlus } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,8 @@ import {
 } from "@/services/postApi";
 
 export function CommunityFeedPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [posts, setPosts] = useState<ReviewPost[]>([]);
   const [sort, setSort] = useState<FeedSort>("latest");
   const [isLoading, setIsLoading] = useState(true);
@@ -31,6 +33,15 @@ export function CommunityFeedPage() {
   const [commentTextByPost, setCommentTextByPost] = useState<Record<number, string>>({});
   const [likedPostIds, setLikedPostIds] = useState<number[]>([]);
   const [savedPostIds, setSavedPostIds] = useState<number[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    const state = location.state as { notice?: string } | null;
+    if (state?.notice) {
+      setNotice(state.notice);
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.pathname, location.state, navigate]);
 
   useEffect(() => {
     const loadFeed = async () => {
@@ -154,6 +165,7 @@ export function CommunityFeedPage() {
       </div>
 
       {isLoading && <Card className="mt-8 h-96 animate-pulse bg-muted/50" />}
+      {notice && <div className="mt-8 rounded-lg border bg-accent/10 p-5 text-sm text-accent">{notice}</div>}
       {error && <div className="mt-8 rounded-lg border border-destructive/30 bg-destructive/10 p-5 text-sm text-destructive">{error}</div>}
       {!isLoading && !error && posts.length === 0 && (
         <div className="mt-8 rounded-lg border bg-muted/40 p-8 text-center text-muted-foreground">No review posts yet.</div>

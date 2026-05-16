@@ -13,6 +13,7 @@ import { createReviewPost, uploadPostImages } from "@/services/postApi";
 const maxImages = 10;
 const maxImageSize = 5 * 1024 * 1024;
 const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+const communityFeedRoute = "/community";
 
 export function CreatePostPage() {
   const navigate = useNavigate();
@@ -25,7 +26,9 @@ export function CreatePostPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void getPlaces({ limit: 100 }).then(setPlaces).catch(() => setError("Không thể tải danh sách địa điểm."));
+    void getPlaces({ limit: 100 })
+      .then(setPlaces)
+      .catch(() => setError("Không thể tải danh sách địa điểm."));
   }, []);
 
   const previews = useMemo(() => files.map((file) => ({ file, url: URL.createObjectURL(file) })), [files]);
@@ -55,10 +58,12 @@ export function CreatePostPage() {
   };
 
   const handleSubmit = async () => {
+    if (isLoading) return;
     if (!title.trim() || !content.trim() || !placeId) {
       setError("Vui lòng nhập tiêu đề, nội dung và chọn địa điểm.");
       return;
     }
+
     setIsLoading(true);
     setError(null);
     try {
@@ -69,7 +74,11 @@ export function CreatePostPage() {
         place_id: Number(placeId),
         images: uploadedUrls,
       });
-      navigate("/community");
+
+      navigate(communityFeedRoute, {
+        replace: true,
+        state: { notice: "Đăng bài thành công!" },
+      });
     } catch {
       setError("Không thể đăng bài. Vui lòng đăng nhập và kiểm tra lại thông tin.");
     } finally {
@@ -88,9 +97,15 @@ export function CreatePostPage() {
         <CardContent className="space-y-4">
           {error && <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
           <Input onChange={(event) => setTitle(event.target.value)} placeholder="Tiêu đề bài viết" value={title} />
-          <select className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" onChange={(event) => setPlaceId(event.target.value)} value={placeId}>
+          <select
+            className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onChange={(event) => setPlaceId(event.target.value)}
+            value={placeId}
+          >
             <option value="">Chọn địa điểm</option>
-            {places.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}
+            {places.map((place) => (
+              <option key={place.id} value={place.id}>{place.name}</option>
+            ))}
           </select>
           <Textarea onChange={(event) => setContent(event.target.value)} placeholder="Chuyến đi có gì đáng nhớ?" value={content} />
           <label className="flex h-36 w-full cursor-pointer items-center justify-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground hover:bg-muted">
@@ -103,7 +118,11 @@ export function CreatePostPage() {
               {previews.map((preview, index) => (
                 <div className="relative overflow-hidden rounded-md border" key={`${preview.file.name}-${index}`}>
                   <img alt={`Ảnh bài viết ${index + 1}`} className="h-28 w-full object-cover" src={preview.url} />
-                  <button className="absolute right-2 top-2 rounded-full bg-background/90 p-1 shadow" onClick={() => setFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))} type="button">
+                  <button
+                    className="absolute right-2 top-2 rounded-full bg-background/90 p-1 shadow"
+                    onClick={() => setFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}
+                    type="button"
+                  >
                     <X className="h-4 w-4" />
                   </button>
                 </div>
