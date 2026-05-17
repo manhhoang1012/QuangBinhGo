@@ -40,6 +40,27 @@ class CommentUpdate(BaseModel):
     content: str = Field(min_length=1, max_length=2000)
 
 
+class CommentStatusUpdate(BaseModel):
+    status: str = Field(pattern="^(visible|hidden|deleted|spam)$")
+
+
+class CommentReportCreate(BaseModel):
+    reason: str = Field(pattern="^(spam|offensive|harassment|other)$")
+    detail: str | None = Field(default=None, max_length=1000)
+
+
+class CommentReportRead(BaseModel):
+    id: int
+    reason: str
+    detail: str | None = None
+    status: str
+    reporter: UserRead | None = None
+    comment_id: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class PostReportCreate(BaseModel):
     reason: str | None = Field(default=None, min_length=1, max_length=120)
     report_reason: str | None = Field(default=None, min_length=1, max_length=120)
@@ -62,9 +83,14 @@ class CommentRead(BaseModel):
     content: str
     author: UserRead
     parent_comment_id: int | None = None
+    status: str = "visible"
+    like_count: int = 0
     likes_count: int = 0
+    report_count: int = 0
+    liked_by_me: bool = False
     replies: list["CommentRead"] = Field(default_factory=list)
     created_at: datetime
+    updated_at: datetime
 
     model_config = {"from_attributes": True}
 
@@ -106,6 +132,8 @@ class PostInteractionResponse(BaseModel):
 class CommentInteractionResponse(BaseModel):
     comment_id: int
     liked: bool
+    liked_by_me: bool
+    like_count: int
     likes_count: int
 
 
@@ -150,8 +178,12 @@ class PostStatusUpdate(BaseModel):
 class AdminCommentRead(BaseModel):
     id: int
     content: str
+    status: str = "visible"
+    report_count: int = 0
+    like_count: int = 0
     author: UserRead
     post: ReviewPostRead
+    reports: list[CommentReportRead] = Field(default_factory=list)
     created_at: datetime
 
     model_config = {"from_attributes": True}

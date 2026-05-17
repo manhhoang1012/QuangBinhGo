@@ -116,9 +116,14 @@ export interface Comment {
   content: string;
   author: User;
   parent_comment_id?: number | null;
+  status: "visible" | "hidden" | "deleted" | "spam";
+  like_count: number;
   likes_count: number;
+  report_count: number;
+  liked_by_me: boolean;
   replies: Comment[];
   created_at: string;
+  updated_at: string;
 }
 
 export interface PlaceReview {

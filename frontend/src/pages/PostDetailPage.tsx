@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { type Comment, type ReviewPost, type User } from "@/services/api";
-import { createComment, getComments, likeComment, replyComment } from "@/services/commentApi";
+import { createComment, deleteComment, getComments, likeComment, reportComment, replyComment, unlikeComment, updateComment } from "@/services/commentApi";
 import { deleteReviewPost, getHashtagFeed, getReviewPost, likePost, reportPost, savePost, sharePost } from "@/services/postApi";
 import { getCurrentProfile } from "@/services/userApi";
 
@@ -22,6 +22,7 @@ export function PostDetailPage() {
   const [relatedPosts, setRelatedPosts] = useState<ReviewPost[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -54,10 +55,15 @@ export function PostDetailPage() {
 
   const handleComment = async () => {
     if (!commentText.trim()) return;
-    await createComment(numericPostId, commentText.trim());
-    setCommentText("");
-    setComments(await getComments(numericPostId));
-    setPost(await getReviewPost(numericPostId));
+    try {
+      await createComment(numericPostId, commentText.trim());
+      setCommentText("");
+      setComments(await getComments(numericPostId));
+      setPost(await getReviewPost(numericPostId));
+      setNotice("Da gui binh luan.");
+    } catch {
+      setError("Bình luận có dấu hiệu spam. Vui lòng chỉnh sửa nội dung.");
+    }
   };
 
   const handleDelete = async () => {
@@ -115,6 +121,7 @@ export function PostDetailPage() {
 
       <section className="mt-8 space-y-4">
         <h2 className="text-2xl font-semibold">Binh luan</h2>
+        {notice && <div className="rounded-md border bg-accent/10 p-3 text-sm text-accent">{notice}</div>}
         <div className="flex gap-2">
           <Input onChange={(event) => setCommentText(event.target.value)} placeholder="Viet binh luan" value={commentText} />
           <Button onClick={() => void handleComment().catch(() => setError("Vui long dang nhap truoc khi binh luan."))}>Gui</Button>
@@ -123,15 +130,40 @@ export function PostDetailPage() {
         {comments.map((comment) => (
           <CommentThread
             comment={comment}
+            currentUser={currentUser}
             key={comment.id}
-            onLike={async (commentId) => {
-              await likeComment(commentId);
+            onDelete={async (commentId) => {
+              await deleteComment(numericPostId, commentId);
+              setComments(await getComments(numericPostId));
+              setPost(await getReviewPost(numericPostId));
+              setNotice("Da xoa binh luan.");
+            }}
+            onEdit={async (commentId, content) => {
+              await updateComment(numericPostId, commentId, content);
+              setComments(await getComments(numericPostId));
+              setNotice("Da cap nhat binh luan.");
+            }}
+            onLike={async (item) => {
+              if (item.liked_by_me) {
+                await unlikeComment(numericPostId, item.id);
+              } else {
+                await likeComment(numericPostId, item.id);
+              }
               setComments(await getComments(numericPostId));
             }}
             onReply={async (commentId, content) => {
-              await replyComment(numericPostId, commentId, content);
+              try {
+                await replyComment(numericPostId, commentId, content);
+              } catch {
+                setError("Bình luận có dấu hiệu spam. Vui lòng chỉnh sửa nội dung.");
+                return;
+              }
               setComments(await getComments(numericPostId));
               setPost(await getReviewPost(numericPostId));
+            }}
+            onReport={async (commentId, reason, detail) => {
+              await reportComment(numericPostId, commentId, { reason, detail });
+              setNotice("Da gui bao cao binh luan.");
             }}
           />
         ))}

@@ -9,13 +9,13 @@ from app.api.dependencies import require_admin, require_moderator_or_admin
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.place import Category, Place
-from app.models.review_post import PlaceReview, PostComment, PostReport, ReviewPost
+from app.models.review_post import CommentReport, PlaceReview, PostComment, PostReport, ReviewPost
 from app.models.user import User
 from app.repositories.place_repository import PlaceRepository
 from app.repositories.review_post_repository import ReviewPostRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.place import CategoryCreate, CategoryRead, CategoryUpdate, PlaceCreate, PlaceRead, PlaceUpdate
-from app.schemas.review_post import AdminCommentRead, AdminPlaceReviewRead, AdminPostReportRead, PostReportRead, PostStatusUpdate, ReviewPostRead
+from app.schemas.review_post import AdminCommentRead, AdminPlaceReviewRead, AdminPostReportRead, CommentReportRead, CommentStatusUpdate, PostReportRead, PostStatusUpdate, ReviewPostRead
 from app.schemas.site_settings import SettingsUploadResponse, SiteSettingsPayload
 from app.schemas.user import AdminUserRead, MessageResponse, UserRoleUpdate, UserStatusUpdate
 from app.services.place_service import PlaceService
@@ -277,6 +277,7 @@ def admin_resolve_report(report_id: int, _: User = Depends(require_moderator_or_
 def admin_list_comments(
     post_id: int | None = None,
     user_id: int | None = None,
+    status_value: str | None = Query(default=None, alias="status"),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),
     _: User = Depends(require_moderator_or_admin),
@@ -287,6 +288,8 @@ def admin_list_comments(
         stmt = stmt.where(PostComment.post_id == post_id)
     if user_id:
         stmt = stmt.where(PostComment.user_id == user_id)
+    if status_value:
+        stmt = stmt.where(PostComment.status == status_value)
     comments = db.scalars(stmt).all()
     result = []
     repo = ReviewPostRepository(db)
@@ -294,8 +297,36 @@ def admin_list_comments(
     for comment in comments:
         counts = repo.get_many_with_counts([comment.post_id]).get(comment.post_id)
         if counts:
-            result.append({"id": comment.id, "content": comment.content, "author": comment.author, "post": svc.build_post_read(counts[0], likes_count=counts[1], comments_count=counts[2], saves_count=counts[3]), "created_at": comment.created_at})
+            reports = list(db.scalars(select(CommentReport).options(selectinload(CommentReport.reporter)).where(CommentReport.comment_id == comment.id)).all())
+            result.append({
+                "id": comment.id,
+                "content": comment.content,
+                "status": comment.status,
+                "report_count": comment.report_count,
+                "like_count": repo.count_comment_likes(comment.id),
+                "author": comment.author,
+                "post": svc.build_post_read(counts[0], likes_count=counts[1], comments_count=counts[2], saves_count=counts[3]),
+                "reports": [CommentReportRead.model_validate({**report.__dict__, "reporter": report.reporter}) for report in reports],
+                "created_at": comment.created_at,
+            })
     return result
+
+
+@router.get("/comments/reports", response_model=list[CommentReportRead])
+def admin_list_comment_reports(
+    status_value: str | None = Query(default=None, alias="status"),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=100),
+    _: User = Depends(require_moderator_or_admin),
+    db: Session = Depends(get_db),
+):
+    return post_service(db).list_comment_reports(status_value=status_value, skip=skip, limit=limit)
+
+
+@router.patch("/comments/{comment_id}/status", response_model=AdminCommentRead)
+def admin_update_comment_status(comment_id: int, payload: CommentStatusUpdate, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
+    comment = post_service(db).update_comment_status(comment_id=comment_id, status_update=payload)
+    return admin_list_comments(post_id=comment.post_id, user_id=None, status_value=None, skip=0, limit=100, _=_, db=db)[0]
 
 
 @router.delete("/comments/{comment_id}", response_model=MessageResponse)
@@ -303,8 +334,7 @@ def admin_delete_comment(comment_id: int, _: User = Depends(require_moderator_or
     comment = db.get(PostComment, comment_id)
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found.")
-    db.delete(comment)
-    db.commit()
+    post_service(db).update_comment_status(comment_id=comment_id, status_update=CommentStatusUpdate(status="deleted"))
     return MessageResponse(message="Comment deleted successfully.")
 
 

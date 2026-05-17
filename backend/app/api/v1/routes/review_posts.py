@@ -17,6 +17,8 @@ from app.repositories.user_repository import UserRepository
 from app.schemas.review_post import (
     CommentCreate,
     CommentInteractionResponse,
+    CommentReportCreate,
+    CommentReportRead,
     CommentRead,
     CommentUpdate,
     PostInteractionResponse,
@@ -199,8 +201,8 @@ def comment_post(post_id: int, comment_create: CommentCreate, current_user: User
 
 
 @router.get("/{post_id}/comments", response_model=list[CommentRead])
-def list_comments(post_id: int, skip: int = Query(default=0, ge=0), limit: int = Query(default=50, ge=1, le=100), service: ReviewPostService = Depends(get_review_post_service)) -> list[dict]:
-    return service.list_comments(post_id=post_id, skip=skip, limit=limit)
+def list_comments(post_id: int, skip: int = Query(default=0, ge=0), limit: int = Query(default=50, ge=1, le=100), current_user: User | None = Depends(get_optional_current_user), service: ReviewPostService = Depends(get_review_post_service)) -> list[dict]:
+    return service.list_comments(post_id=post_id, current_user=current_user, skip=skip, limit=limit)
 
 
 @router.post("/{post_id}/comments/{comment_id}/replies", response_model=CommentRead, status_code=status.HTTP_201_CREATED)
@@ -227,6 +229,21 @@ def like_comment(comment_id: int, current_user: User = Depends(get_current_user)
 @router.delete("/comments/{comment_id}/like", response_model=CommentInteractionResponse)
 def unlike_comment(comment_id: int, current_user: User = Depends(get_current_user), service: ReviewPostService = Depends(get_review_post_service)) -> CommentInteractionResponse:
     return service.unlike_comment(comment_id=comment_id, current_user=current_user)
+
+
+@router.post("/{post_id}/comments/{comment_id}/like", response_model=CommentInteractionResponse)
+def like_post_comment(post_id: int, comment_id: int, current_user: User = Depends(get_current_user), service: ReviewPostService = Depends(get_review_post_service)) -> CommentInteractionResponse:
+    return service.like_post_comment(post_id=post_id, comment_id=comment_id, current_user=current_user)
+
+
+@router.delete("/{post_id}/comments/{comment_id}/like", response_model=CommentInteractionResponse)
+def unlike_post_comment(post_id: int, comment_id: int, current_user: User = Depends(get_current_user), service: ReviewPostService = Depends(get_review_post_service)) -> CommentInteractionResponse:
+    return service.unlike_post_comment(post_id=post_id, comment_id=comment_id, current_user=current_user)
+
+
+@router.post("/{post_id}/comments/{comment_id}/reports", response_model=CommentReportRead, status_code=status.HTTP_201_CREATED)
+def report_comment(post_id: int, comment_id: int, report_create: CommentReportCreate, current_user: User = Depends(get_current_user), service: ReviewPostService = Depends(get_review_post_service)) -> CommentReportRead:
+    return service.report_comment(post_id=post_id, comment_id=comment_id, current_user=current_user, report_create=report_create)
 
 
 @router.post("/{post_id}/reports", response_model=PostReportRead, status_code=status.HTTP_201_CREATED)

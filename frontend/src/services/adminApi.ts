@@ -13,8 +13,12 @@ export interface AdminStats {
 export interface AdminComment {
   id: number;
   content: string;
+  status: string;
+  report_count: number;
+  like_count: number;
   author: User;
   post: ReviewPost;
+  reports: Array<{ id: number; reason: string; detail?: string | null; status: string; created_at: string; reporter?: User | null }>;
   created_at: string;
 }
 
@@ -112,8 +116,18 @@ export async function deletePost(id: number) {
   return response.data;
 }
 
-export async function getAdminComments(params: { post_id?: number; user_id?: number; skip?: number; limit?: number } = {}) {
+export async function getAdminComments(params: { post_id?: number; user_id?: number; status?: string; skip?: number; limit?: number } = {}) {
   const response = await api.get<AdminComment[]>("/admin/comments", { params });
+  return response.data;
+}
+
+export async function getAdminCommentReports(params: { status?: string; skip?: number; limit?: number } = {}) {
+  const response = await api.get("/admin/comments/reports", { params });
+  return response.data;
+}
+
+export async function updateCommentStatus(id: number, status: "visible" | "hidden" | "deleted" | "spam") {
+  const response = await api.patch<AdminComment>(`/admin/comments/${id}/status`, { status });
   return response.data;
 }
 

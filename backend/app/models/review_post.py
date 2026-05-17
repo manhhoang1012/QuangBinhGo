@@ -85,6 +85,8 @@ class PostComment(TimestampMixin, Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
     parent_comment_id: Mapped[int | None] = mapped_column(ForeignKey("post_comments.id", ondelete="CASCADE"), index=True, nullable=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="visible", nullable=False)
+    report_count: Mapped[int] = mapped_column(default=0, nullable=False)
 
     author = relationship("User")
     replies = relationship("PostComment")
@@ -97,6 +99,21 @@ class CommentLike(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     comment_id: Mapped[int] = mapped_column(ForeignKey("post_comments.id", ondelete="CASCADE"), index=True, nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+
+
+class CommentReport(TimestampMixin, Base):
+    __tablename__ = "comment_reports"
+    __table_args__ = (UniqueConstraint("comment_id", "user_id", name="uq_comment_reports_comment_user"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    comment_id: Mapped[int] = mapped_column(ForeignKey("post_comments.id", ondelete="CASCADE"), index=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    reason: Mapped[str] = mapped_column(String(50), nullable=False)
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="open", nullable=False)
+
+    reporter = relationship("User")
+    comment = relationship("PostComment")
 
 
 class PlaceReview(TimestampMixin, Base):

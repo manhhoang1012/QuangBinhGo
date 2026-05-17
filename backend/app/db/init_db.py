@@ -1,9 +1,9 @@
 from app.db.base import Base
 from app.db.session import engine
-from app.models import AuthToken, Category, CommentLike, Place, PlaceReview, PostComment, PostHide, PostLike, PostReport, PostSave, ReviewPost, SiteSettings, User, UserFollow
+from app.models import AuthToken, Category, CommentLike, CommentReport, Place, PlaceReview, PostComment, PostHide, PostLike, PostReport, PostSave, ReviewPost, SiteSettings, User, UserFollow
 from sqlalchemy import inspect, text
 
-__all__ = ["AuthToken", "Category", "CommentLike", "Place", "PlaceReview", "PostComment", "PostHide", "PostLike", "PostReport", "PostSave", "ReviewPost", "SiteSettings", "User", "UserFollow"]
+__all__ = ["AuthToken", "Category", "CommentLike", "CommentReport", "Place", "PlaceReview", "PostComment", "PostHide", "PostLike", "PostReport", "PostSave", "ReviewPost", "SiteSettings", "User", "UserFollow"]
 
 
 def init_db() -> None:
@@ -73,7 +73,11 @@ def ensure_admin_content_columns() -> None:
             "is_draft": "BOOLEAN DEFAULT FALSE NOT NULL",
             "share_count": "INTEGER DEFAULT 0 NOT NULL",
         },
-        "post_comments": {"parent_comment_id": "INTEGER"},
+        "post_comments": {
+            "parent_comment_id": "INTEGER",
+            "status": "VARCHAR(30) DEFAULT 'visible' NOT NULL",
+            "report_count": "INTEGER DEFAULT 0 NOT NULL",
+        },
     }
 
     with engine.begin() as connection:
@@ -95,3 +99,6 @@ def ensure_admin_content_columns() -> None:
             connection.execute(text("UPDATE review_posts SET visibility = 'public' WHERE visibility IS NULL"))
             connection.execute(text("UPDATE review_posts SET is_draft = FALSE WHERE is_draft IS NULL"))
             connection.execute(text("UPDATE review_posts SET share_count = 0 WHERE share_count IS NULL"))
+        if "post_comments" in tables:
+            connection.execute(text("UPDATE post_comments SET status = 'visible' WHERE status IS NULL"))
+            connection.execute(text("UPDATE post_comments SET report_count = 0 WHERE report_count IS NULL"))

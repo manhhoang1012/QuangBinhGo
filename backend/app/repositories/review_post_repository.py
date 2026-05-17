@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.review_post import CommentLike, PlaceReview, PostComment, PostHide, PostLike, PostReport, PostSave, ReviewPost, UserFollow
+from app.models.review_post import CommentLike, CommentReport, PlaceReview, PostComment, PostHide, PostLike, PostReport, PostSave, ReviewPost, UserFollow
 from app.models.user import User
 from app.schemas.review_post import CommentCreate, ReviewPostCreate, ReviewPostUpdate
 
@@ -73,7 +73,7 @@ class ReviewPostRepository:
         limit: int = 20,
     ) -> Sequence[tuple[ReviewPost, int, int, int]]:
         likes_count = func.count(func.distinct(PostLike.id)).label("likes_count")
-        comments_count = func.count(func.distinct(PostComment.id)).label("comments_count")
+        comments_count = func.count(func.distinct(PostComment.id)).filter(PostComment.status == "visible").label("comments_count")
         saves_count = func.count(func.distinct(PostSave.id)).label("saves_count")
 
         statement = (
@@ -150,7 +150,7 @@ class ReviewPostRepository:
             return {}
 
         likes_count = func.count(func.distinct(PostLike.id)).label("likes_count")
-        comments_count = func.count(func.distinct(PostComment.id)).label("comments_count")
+        comments_count = func.count(func.distinct(PostComment.id)).filter(PostComment.status == "visible").label("comments_count")
         saves_count = func.count(func.distinct(PostSave.id)).label("saves_count")
 
         statement = (
@@ -225,15 +225,16 @@ class ReviewPostRepository:
         )
         return self.db.scalar(statement)
 
-    def list_comments(self, *, post_id: int, skip: int = 0, limit: int = 50) -> Sequence[PostComment]:
+    def list_comments(self, *, post_id: int, skip: int = 0, limit: int = 50, include_moderation: bool = False) -> Sequence[PostComment]:
         statement = (
             select(PostComment)
             .where(PostComment.post_id == post_id)
             .options(selectinload(PostComment.author))
             .order_by(PostComment.created_at.asc())
-            .offset(skip)
-            .limit(limit)
         )
+        if not include_moderation:
+            statement = statement.where(PostComment.status.in_(["visible", "deleted"]))
+        statement = statement.offset(skip).limit(limit)
         return self.db.scalars(statement).all()
 
     def count_comment_likes(self, comment_id: int) -> int:
@@ -260,9 +261,17 @@ class ReviewPostRepository:
         self.db.refresh(comment)
         return self.get_comment(comment.id) or comment
 
-    def delete_comment(self, comment: PostComment) -> None:
-        self.db.delete(comment)
+    def set_comment_status(self, comment: PostComment, status_value: str, content: str | None = None) -> PostComment:
+        comment.status = status_value
+        if content is not None:
+            comment.content = content
+        self.db.add(comment)
         self.db.commit()
+        self.db.refresh(comment)
+        return self.get_comment(comment.id) or comment
+
+    def delete_comment(self, comment: PostComment) -> PostComment:
+        return self.set_comment_status(comment, "deleted", "Bình luận đã bị xóa")
 
     def count_likes(self, post_id: int) -> int:
         return self.db.scalar(select(func.count(PostLike.id)).where(PostLike.post_id == post_id)) or 0
@@ -271,7 +280,36 @@ class ReviewPostRepository:
         return self.db.scalar(select(func.count(PostSave.id)).where(PostSave.post_id == post_id)) or 0
 
     def count_comments(self, post_id: int) -> int:
-        return self.db.scalar(select(func.count(PostComment.id)).where(PostComment.post_id == post_id)) or 0
+        return self.db.scalar(select(func.count(PostComment.id)).where(PostComment.post_id == post_id, PostComment.status == "visible")) or 0
+
+    def create_comment_report(self, *, comment: PostComment, user_id: int, reason: str, detail: str | None) -> CommentReport:
+        existing = self.db.scalar(select(CommentReport).where(CommentReport.comment_id == comment.id, CommentReport.user_id == user_id))
+        if existing:
+            return existing
+        report = CommentReport(comment_id=comment.id, user_id=user_id, reason=reason, detail=detail)
+        comment.report_count = (comment.report_count or 0) + 1
+        if comment.report_count >= 3 and comment.status == "visible":
+            comment.status = "hidden"
+        self.db.add(report)
+        self.db.add(comment)
+        self.db.commit()
+        self.db.refresh(report)
+        return report
+
+    def count_comment_reports(self, comment_id: int) -> int:
+        return self.db.scalar(select(func.count(CommentReport.id)).where(CommentReport.comment_id == comment_id)) or 0
+
+    def list_comment_reports(self, *, status_value: str | None = None, skip: int = 0, limit: int = 50) -> Sequence[CommentReport]:
+        statement = (
+            select(CommentReport)
+            .options(selectinload(CommentReport.reporter), selectinload(CommentReport.comment).selectinload(PostComment.author))
+            .order_by(CommentReport.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        if status_value:
+            statement = statement.where(CommentReport.status == status_value)
+        return self.db.scalars(statement).all()
 
     def increment_share_count(self, post: ReviewPost) -> ReviewPost:
         post.share_count = (post.share_count or 0) + 1

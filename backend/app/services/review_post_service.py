@@ -10,6 +10,9 @@ from app.schemas.review_post import (
     AdminPostReportRead,
     CommentCreate,
     CommentInteractionResponse,
+    CommentReportCreate,
+    CommentReportRead,
+    CommentStatusUpdate,
     CommentUpdate,
     PostInteractionResponse,
     PostReportCreate,
@@ -24,6 +27,9 @@ from app.services.vector_search_service import VectorSearchService
 
 
 class ReviewPostService:
+    SPAM_KEYWORDS = {"casino", "betting", "free money", "telegram@", "http://spam"}
+    DELETED_COMMENT_TEXT = "Bình luận đã bị xóa"
+
     def __init__(
         self,
         review_post_repository: ReviewPostRepository,
@@ -159,12 +165,16 @@ class ReviewPostService:
 
     def comment_post(self, *, post_id: int, current_user: User, comment_create: CommentCreate) -> PostComment:
         self._get_existing_post(post_id)
+        self._ensure_comment_is_safe(comment_create.content)
         return self.review_post_repository.create_comment(post_id=post_id, user_id=current_user.id, comment_create=comment_create)
 
     def reply_comment(self, *, post_id: int, comment_id: int, current_user: User, comment_create: CommentCreate) -> PostComment:
         parent = self.review_post_repository.get_comment(comment_id)
         if not parent or parent.post_id != post_id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found.")
+        if parent.status != "visible":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot reply to this comment.")
+        self._ensure_comment_is_safe(comment_create.content)
         return self.review_post_repository.create_comment(post_id=post_id, user_id=current_user.id, comment_create=comment_create, parent_comment_id=comment_id)
 
     def update_comment(self, *, post_id: int, comment_id: int, current_user: User, comment_update: CommentUpdate) -> PostComment:
@@ -174,6 +184,9 @@ class ReviewPostService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found.")
         if comment.user_id != current_user.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only update your own comment.")
+        if comment.status == "deleted":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Deleted comments cannot be edited.")
+        self._ensure_comment_is_safe(comment_update.content)
         return self.review_post_repository.update_comment(comment, comment_update.content)
 
     def delete_comment(self, *, post_id: int, comment_id: int, current_user: User) -> None:
@@ -185,19 +198,25 @@ class ReviewPostService:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only delete your own comment.")
         self.review_post_repository.delete_comment(comment)
 
-    def list_comments(self, *, post_id: int, skip: int = 0, limit: int = 50) -> list[dict]:
+    def list_comments(self, *, post_id: int, current_user: User | None = None, skip: int = 0, limit: int = 50) -> list[dict]:
         self._get_existing_post(post_id)
         comments = self.review_post_repository.list_comments(post_id=post_id, skip=skip, limit=limit)
         by_parent: dict[int | None, list[dict]] = {}
         for comment in comments:
+            likes_count = self.review_post_repository.count_comment_likes(comment.id)
             item = {
                 "id": comment.id,
                 "content": comment.content,
                 "author": comment.author,
                 "parent_comment_id": comment.parent_comment_id,
-                "likes_count": self.review_post_repository.count_comment_likes(comment.id),
+                "status": comment.status,
+                "like_count": likes_count,
+                "likes_count": likes_count,
+                "report_count": comment.report_count,
+                "liked_by_me": bool(current_user and self.review_post_repository.get_comment_like(comment_id=comment.id, user_id=current_user.id)),
                 "replies": [],
                 "created_at": comment.created_at,
+                "updated_at": comment.updated_at,
             }
             by_parent.setdefault(comment.parent_comment_id, []).append(item)
         for item in by_parent.get(None, []):
@@ -205,17 +224,50 @@ class ReviewPostService:
         return by_parent.get(None, [])
 
     def like_comment(self, *, comment_id: int, current_user: User) -> CommentInteractionResponse:
-        if not self.review_post_repository.get_comment(comment_id):
+        comment = self.review_post_repository.get_comment(comment_id)
+        if not comment:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found.")
+        if comment.status != "visible":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot like this comment.")
         if not self.review_post_repository.get_comment_like(comment_id=comment_id, user_id=current_user.id):
             self.review_post_repository.add_comment_like(comment_id=comment_id, user_id=current_user.id)
-        return CommentInteractionResponse(comment_id=comment_id, liked=True, likes_count=self.review_post_repository.count_comment_likes(comment_id))
+        count = self.review_post_repository.count_comment_likes(comment_id)
+        return CommentInteractionResponse(comment_id=comment_id, liked=True, liked_by_me=True, like_count=count, likes_count=count)
 
     def unlike_comment(self, *, comment_id: int, current_user: User) -> CommentInteractionResponse:
         if not self.review_post_repository.get_comment(comment_id):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found.")
         self.review_post_repository.remove_comment_like(comment_id=comment_id, user_id=current_user.id)
-        return CommentInteractionResponse(comment_id=comment_id, liked=False, likes_count=self.review_post_repository.count_comment_likes(comment_id))
+        count = self.review_post_repository.count_comment_likes(comment_id)
+        return CommentInteractionResponse(comment_id=comment_id, liked=False, liked_by_me=False, like_count=count, likes_count=count)
+
+    def like_post_comment(self, *, post_id: int, comment_id: int, current_user: User) -> CommentInteractionResponse:
+        self._get_post_comment(post_id=post_id, comment_id=comment_id)
+        return self.like_comment(comment_id=comment_id, current_user=current_user)
+
+    def unlike_post_comment(self, *, post_id: int, comment_id: int, current_user: User) -> CommentInteractionResponse:
+        self._get_post_comment(post_id=post_id, comment_id=comment_id)
+        return self.unlike_comment(comment_id=comment_id, current_user=current_user)
+
+    def report_comment(self, *, post_id: int, comment_id: int, current_user: User, report_create: CommentReportCreate) -> CommentReportRead:
+        comment = self._get_post_comment(post_id=post_id, comment_id=comment_id)
+        if comment.user_id == current_user.id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot report your own comment.")
+        if comment.status not in {"visible", "hidden", "spam"}:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This comment cannot be reported.")
+        report = self.review_post_repository.create_comment_report(comment=comment, user_id=current_user.id, reason=report_create.reason, detail=report_create.detail)
+        return CommentReportRead.model_validate({**report.__dict__, "reporter": report.reporter})
+
+    def update_comment_status(self, *, comment_id: int, status_update: CommentStatusUpdate) -> PostComment:
+        comment = self.review_post_repository.get_comment(comment_id)
+        if not comment:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found.")
+        content = self.DELETED_COMMENT_TEXT if status_update.status == "deleted" else None
+        return self.review_post_repository.set_comment_status(comment, status_update.status, content)
+
+    def list_comment_reports(self, *, status_value: str | None = None, skip: int = 0, limit: int = 50) -> list[CommentReportRead]:
+        reports = self.review_post_repository.list_comment_reports(status_value=status_value, skip=skip, limit=limit)
+        return [CommentReportRead.model_validate({**report.__dict__, "reporter": report.reporter}) for report in reports]
 
     def follow_user(self, *, current_user: User, target_user: User) -> dict[str, bool]:
         if current_user.id == target_user.id:
@@ -277,6 +329,13 @@ class ReviewPostService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review post not found.")
         return post
 
+    def _get_post_comment(self, *, post_id: int, comment_id: int) -> PostComment:
+        self._get_existing_post(post_id)
+        comment = self.review_post_repository.get_comment(comment_id)
+        if not comment or comment.post_id != post_id:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found.")
+        return comment
+
     def _ensure_can_view(self, post, *, current_user: User | None) -> None:
         if current_user and current_user.role in {"moderator", "admin"}:
             return
@@ -309,6 +368,21 @@ class ReviewPostService:
         parsed = re.findall(r"#([\w-]+)", content.lower())
         explicit = [self._normalize_tag(tag) for tag in hashtags]
         return list(dict.fromkeys(tag for tag in [*parsed, *explicit] if tag))
+
+    def _ensure_comment_is_safe(self, content: str) -> None:
+        text = content.strip()
+        compact = re.sub(r"\s+", "", text)
+        if not text:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Comment content is required.")
+        if len(compact) < 2 or not re.search(r"[\wÀ-ỹ]", text, flags=re.IGNORECASE):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bình luận có dấu hiệu spam. Vui lòng chỉnh sửa nội dung.")
+        if len(re.findall(r"https?://|www\.", text.lower())) > 2:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bình luận có dấu hiệu spam. Vui lòng chỉnh sửa nội dung.")
+        if re.search(r"(.)\1{8,}", compact.lower()):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bình luận có dấu hiệu spam. Vui lòng chỉnh sửa nội dung.")
+        lowered = text.lower()
+        if any(keyword in lowered for keyword in self.SPAM_KEYWORDS):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bình luận có dấu hiệu spam. Vui lòng chỉnh sửa nội dung.")
 
     def _index_post(self, post) -> None:
         if not self.embedding_service or not self.vector_search_service or post.is_draft:
