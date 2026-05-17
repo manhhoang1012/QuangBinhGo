@@ -370,6 +370,24 @@ class ReviewPostRepository:
         )
         return self.db.scalars(statement).all()
 
+    def list_follow_suggestions(self, *, current_user_id: int | None = None, skip: int = 0, limit: int = 10) -> Sequence[User]:
+        followers_count = func.count(UserFollow.id).label("followers_count")
+        statement = (
+            select(User)
+            .outerjoin(UserFollow, UserFollow.following_id == User.id)
+            .where(User.deleted_at.is_(None), User.is_active.is_(True))
+            .group_by(User.id)
+            .order_by(followers_count.desc(), User.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        if current_user_id is not None:
+            followed_ids = self.list_following_ids(follower_id=current_user_id)
+            statement = statement.where(User.id != current_user_id)
+            if followed_ids:
+                statement = statement.where(User.id.not_in(followed_ids))
+        return self.db.scalars(statement).all()
+
     def create_report(self, *, post_id: int, user_id: int, reason: str, description: str | None) -> PostReport:
         existing = self.db.scalar(select(PostReport).where(PostReport.post_id == post_id, PostReport.user_id == user_id))
         if existing:

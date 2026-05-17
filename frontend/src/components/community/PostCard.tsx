@@ -1,7 +1,7 @@
 import { Bookmark, EyeOff, Flag, Heart, MessageCircle, MoreHorizontal, Share2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { FollowButton } from "@/components/community/FollowButton";
+import { FollowButton } from "@/components/social/FollowButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -44,7 +44,7 @@ export function PostCard({ post, onLike, onSave, onShare, onReport, onHide }: Po
             {post.visibility !== "public" && <Badge>{post.visibility}</Badge>}
           </div>
           <div className="flex items-center gap-2">
-            <FollowButton className="h-8 px-3" username={post.author.username} initialIsFollowing={post.author.is_following} />
+            <FollowButton className="h-8 px-3" username={post.author.username} initialIsFollowing={post.author.is_following} isSelf={post.author.is_self} />
             <MoreHorizontal className="h-4 w-4" />
           </div>
         </div>

@@ -9,7 +9,7 @@ from app.models.user import User
 from app.repositories.review_post_repository import ReviewPostRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.review_post import PlaceReviewRead, ReviewPostRead
-from app.schemas.user import ChangePasswordRequest, FollowActionResponse, FollowStatusRead, ImageUrlUpdate, MessageResponse, PublicUserRead, UserProfileUpdate, UserRead
+from app.schemas.user import ChangePasswordRequest, FollowActionResponse, FollowStatusRead, ImageUrlUpdate, MessageResponse, PaginatedUsersRead, PublicUserProfileRead, PublicUserRead, UserProfileUpdate, UserRead
 from app.services.review_post_service import ReviewPostService
 from app.services.user_service import UserService
 
@@ -50,7 +50,13 @@ def build_user_read(user: User, repo: ReviewPostRepository, current_user: User |
         "followers_count": repo.count_followers(user_id=user.id),
         "following_count": repo.count_following(user_id=user.id),
         "is_following": is_following,
+        "is_self": bool(current_user and current_user.id == user.id),
     }
+
+
+def paginate(total: int, page: int, limit: int) -> tuple[int, int]:
+    total_pages = max(1, (total + limit - 1) // limit) if total else 0
+    return (page - 1) * limit, total_pages
 
 
 @router.get("/me", response_model=UserRead)
@@ -132,6 +138,27 @@ def update_current_cover_image(
     return user_service.update_cover_image(current_user=current_user, image_update=image_update)
 
 
+@router.get("/suggestions/follow", response_model=PaginatedUsersRead)
+def get_follow_suggestions(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=10, ge=1, le=50),
+    current_user: User | None = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+) -> PaginatedUsersRead:
+    repo = ReviewPostRepository(db)
+    skip, _ = paginate(0, page, limit)
+    users = repo.list_follow_suggestions(current_user_id=current_user.id if current_user else None, skip=skip, limit=limit)
+    total = len(repo.list_follow_suggestions(current_user_id=current_user.id if current_user else None, skip=0, limit=1000))
+    _, total_pages = paginate(total, page, limit)
+    return PaginatedUsersRead(
+        items=[PublicUserRead.model_validate(build_user_read(user, repo, current_user)) for user in users],
+        total=total,
+        page=page,
+        limit=limit,
+        total_pages=total_pages,
+    )
+
+
 @router.get("/{username}", response_model=PublicUserRead)
 def read_public_profile(
     username: str,
@@ -141,6 +168,24 @@ def read_public_profile(
 ) -> dict:
     user = user_service.get_public_profile(username)
     return build_user_read(user, ReviewPostRepository(db), current_user)
+
+
+@router.get("/{username}/public-profile", response_model=PublicUserProfileRead)
+def read_public_profile_detail(
+    username: str,
+    current_user: User | None = Depends(get_optional_current_user),
+    user_service: UserService = Depends(get_user_service),
+    review_post_service: ReviewPostService = Depends(get_review_post_service),
+    db: Session = Depends(get_db),
+) -> dict:
+    user = user_service.get_public_profile(username)
+    recent_posts = review_post_service.get_user_posts(user_id=user.id, current_user=current_user, skip=0, limit=5)
+    return {
+        **build_user_read(user, ReviewPostRepository(db), current_user),
+        "cover_url": user.cover_image_url,
+        "posts_count": len(review_post_service.get_user_posts(user_id=user.id, current_user=current_user, skip=0, limit=1000)),
+        "recent_posts": recent_posts,
+    }
 
 
 @router.post("/{username}/follow")
@@ -156,6 +201,7 @@ def follow_public_user(
     return FollowActionResponse(
         username=target.username,
         is_following=True,
+        is_self=False,
         followers_count=repo.count_followers(user_id=target.id),
         following_count=repo.count_following(user_id=target.id),
         changed=result.get("changed", False),
@@ -176,6 +222,7 @@ def unfollow_public_user(
     return FollowActionResponse(
         username=target.username,
         is_following=False,
+        is_self=False,
         followers_count=repo.count_followers(user_id=target.id),
         following_count=repo.count_following(user_id=target.id),
         changed=result.get("changed", False),
@@ -195,44 +242,64 @@ def get_follow_status(
     return FollowStatusRead(
         username=target.username,
         is_following=bool(current_user and current_user.id != target.id and repo.get_follow(follower_id=current_user.id, following_id=target.id)),
+        is_self=bool(current_user and current_user.id == target.id),
         followers_count=repo.count_followers(user_id=target.id),
         following_count=repo.count_following(user_id=target.id),
     )
 
 
-@router.get("/{username}/followers", response_model=list[PublicUserRead])
+@router.get("/{username}/followers", response_model=PaginatedUsersRead)
 def list_followers(
     username: str,
-    skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=100),
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     current_user: User | None = Depends(get_optional_current_user),
     user_service: UserService = Depends(get_user_service),
     db: Session = Depends(get_db),
-) -> list[dict]:
+) -> PaginatedUsersRead:
     target = user_service.get_public_profile(username)
     repo = ReviewPostRepository(db)
-    return [build_user_read(user, repo, current_user) for user in repo.list_followers(user_id=target.id, skip=skip, limit=limit)]
+    skip, total_pages = paginate(repo.count_followers(user_id=target.id), page, limit)
+    total = repo.count_followers(user_id=target.id)
+    return PaginatedUsersRead(
+        items=[PublicUserRead.model_validate(build_user_read(user, repo, current_user)) for user in repo.list_followers(user_id=target.id, skip=skip, limit=limit)],
+        total=total,
+        page=page,
+        limit=limit,
+        total_pages=total_pages,
+    )
 
 
-@router.get("/{username}/following", response_model=list[PublicUserRead])
+@router.get("/{username}/following", response_model=PaginatedUsersRead)
 def list_following(
     username: str,
-    skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=100),
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     current_user: User | None = Depends(get_optional_current_user),
     user_service: UserService = Depends(get_user_service),
     db: Session = Depends(get_db),
-) -> list[dict]:
+) -> PaginatedUsersRead:
     target = user_service.get_public_profile(username)
     repo = ReviewPostRepository(db)
-    return [build_user_read(user, repo, current_user) for user in repo.list_following(user_id=target.id, skip=skip, limit=limit)]
+    total = repo.count_following(user_id=target.id)
+    skip, total_pages = paginate(total, page, limit)
+    return PaginatedUsersRead(
+        items=[PublicUserRead.model_validate(build_user_read(user, repo, current_user)) for user in repo.list_following(user_id=target.id, skip=skip, limit=limit)],
+        total=total,
+        page=page,
+        limit=limit,
+        total_pages=total_pages,
+    )
 
 
 @router.get("/{username}/posts", response_model=list[ReviewPostRead])
 def list_public_user_posts(
     username: str,
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=10, ge=1, le=50),
+    current_user: User | None = Depends(get_optional_current_user),
     user_service: UserService = Depends(get_user_service),
     review_post_service: ReviewPostService = Depends(get_review_post_service),
 ) -> list[ReviewPostRead]:
     user = user_service.get_public_profile(username)
-    return review_post_service.get_user_posts(user_id=user.id)
+    return review_post_service.get_user_posts(user_id=user.id, current_user=current_user, skip=(page - 1) * limit, limit=limit)

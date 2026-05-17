@@ -103,7 +103,7 @@ class ReviewPostService:
             current_user_id=current_user.id if current_user else None,
             following_user_ids=following_ids if following_only else None,
             viewer_following_ids=following_ids if current_user else None,
-            public_only=following_only,
+            public_only=False,
             place_id=place_id,
             hashtag=self._normalize_tag(hashtag) if hashtag else None,
             skip=skip,

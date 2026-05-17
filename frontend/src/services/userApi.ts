@@ -1,5 +1,5 @@
 import { api, type User } from "@/services/api";
-export { getFollowers, getFollowing, getFollowStatus } from "@/services/followApi";
+export { getFollowers, getFollowing, getFollowStatus, getPublicUserProfile } from "@/services/followApi";
 
 export async function getCurrentProfile() {
   const response = await api.get<User>("/users/me");
@@ -59,8 +59,8 @@ export async function getMyPosts() {
   return response.data;
 }
 
-export async function getUserPosts(username: string) {
-  const response = await api.get<import("@/services/api").ReviewPost[]>(`/users/${username}/posts`);
+export async function getUserPosts(username: string, params: { page?: number; limit?: number } = {}) {
+  const response = await api.get<import("@/services/api").ReviewPost[]>(`/users/${username}/posts`, { params });
   return response.data;
 }
 

@@ -53,6 +53,7 @@ class PublicUserRead(BaseModel):
     followers_count: int = 0
     following_count: int = 0
     is_following: bool = False
+    is_self: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -60,6 +61,7 @@ class PublicUserRead(BaseModel):
 class FollowStatusRead(BaseModel):
     username: str | None = None
     is_following: bool
+    is_self: bool = False
     followers_count: int
     following_count: int
 
@@ -67,6 +69,20 @@ class FollowStatusRead(BaseModel):
 class FollowActionResponse(FollowStatusRead):
     changed: bool = False
     message: str
+
+
+class PublicUserProfileRead(PublicUserRead):
+    cover_url: str | None = None
+    posts_count: int = 0
+    recent_posts: list[object] = Field(default_factory=list)
+
+
+class PaginatedUsersRead(BaseModel):
+    items: list[PublicUserRead]
+    total: int
+    page: int
+    limit: int
+    total_pages: int
 
 
 class UserProfileUpdate(BaseModel):

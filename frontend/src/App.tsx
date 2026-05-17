@@ -93,6 +93,10 @@ const router = createBrowserRouter([
         element: <PublicProfilePage />,
       },
       {
+        path: "users/:username",
+        element: <PublicProfilePage />,
+      },
+      {
         path: "u/:username/posts",
         element: <PublicProfilePage />,
       },

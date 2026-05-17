@@ -108,8 +108,15 @@ def get_trending_feed(skip: int = Query(default=0, ge=0), limit: int = Query(def
 
 
 @router.get("/feed/following", response_model=list[ReviewPostRead])
-def get_following_feed(skip: int = Query(default=0, ge=0), limit: int = Query(default=20, ge=1, le=100), current_user: User = Depends(get_current_user), service: ReviewPostService = Depends(get_review_post_service)):
-    return service.get_feed(sort="latest", current_user=current_user, following_only=True, skip=skip, limit=limit)
+def get_following_feed(
+    page: int = Query(default=1, ge=1),
+    skip: int | None = Query(default=None, ge=0),
+    limit: int = Query(default=20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    service: ReviewPostService = Depends(get_review_post_service),
+):
+    offset = skip if skip is not None else (page - 1) * limit
+    return service.get_feed(sort="latest", current_user=current_user, following_only=True, skip=offset, limit=limit)
 
 
 @router.get("/feed/place/{place_id}", response_model=list[ReviewPostRead])

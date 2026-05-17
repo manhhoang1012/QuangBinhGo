@@ -57,6 +57,9 @@ export interface User {
   followers_count?: number;
   following_count?: number;
   is_following?: boolean;
+  is_self?: boolean;
+  posts_count?: number;
+  cover_url?: string | null;
 }
 
 export interface Place {
