@@ -71,8 +71,11 @@ class ReviewPostService:
 
     def delete_post(self, *, post_id: int, current_user: User) -> None:
         post = self._get_existing_post(post_id)
-        if post.user_id != current_user.id and current_user.role not in {"moderator", "admin"}:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only delete your own post.")
+        if post.user_id != current_user.id and current_user.role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to delete this post.",
+            )
         self.review_post_repository.delete_post(post)
 
     def get_feed(

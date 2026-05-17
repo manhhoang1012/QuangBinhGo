@@ -248,7 +248,7 @@ def admin_update_post_status(post_id: int, payload: PostStatusUpdate, _: User = 
 
 
 @router.delete("/posts/{post_id}", response_model=MessageResponse)
-def admin_delete_post(post_id: int, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
+def admin_delete_post(post_id: int, _: User = Depends(require_admin), db: Session = Depends(get_db)):
     post = ReviewPostRepository(db).get(post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found.")

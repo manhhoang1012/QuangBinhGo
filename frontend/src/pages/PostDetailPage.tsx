@@ -8,15 +8,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { type Comment, type ReviewPost } from "@/services/api";
+import { type Comment, type ReviewPost, type User } from "@/services/api";
 import { createComment, getComments, likeComment, replyComment } from "@/services/commentApi";
 import { deleteReviewPost, getHashtagFeed, getReviewPost, likePost, reportPost, savePost, sharePost } from "@/services/postApi";
+import { getCurrentProfile } from "@/services/userApi";
 
 export function PostDetailPage() {
   const { postId } = useParams();
   const navigate = useNavigate();
   const numericPostId = Number(postId);
   const [post, setPost] = useState<ReviewPost | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [relatedPosts, setRelatedPosts] = useState<ReviewPost[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
@@ -27,9 +29,14 @@ export function PostDetailPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [postData, commentData] = await Promise.all([getReviewPost(numericPostId), getComments(numericPostId)]);
+      const [postData, commentData, me] = await Promise.all([
+        getReviewPost(numericPostId),
+        getComments(numericPostId),
+        getCurrentProfile().catch(() => null),
+      ]);
       setPost(postData);
       setComments(commentData);
+      setCurrentUser(me);
       if (postData.hashtags[0]) {
         const related = await getHashtagFeed(postData.hashtags[0], { limit: 4 });
         setRelatedPosts(related.filter((item) => item.id !== postData.id));
@@ -55,12 +62,17 @@ export function PostDetailPage() {
 
   const handleDelete = async () => {
     if (!window.confirm("Xoa bai viet nay?")) return;
-    await deleteReviewPost(numericPostId);
-    navigate("/community");
+    try {
+      await deleteReviewPost(numericPostId);
+      navigate("/community");
+    } catch {
+      setError("Ban khong co quyen xoa bai viet nay.");
+    }
   };
 
   if (isLoading) return <div className="mx-auto max-w-4xl px-4 py-10 text-muted-foreground">Dang tai bai viet...</div>;
   if (error || !post) return <div className="mx-auto max-w-4xl px-4 py-10 text-destructive">{error ?? "Khong tim thay bai viet."}</div>;
+  const canDelete = currentUser?.id === post.author.id || currentUser?.role === "admin";
 
   return (
     <section className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
@@ -96,7 +108,7 @@ export function PostDetailPage() {
             <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => void savePost(post.id).then(loadPost)}><Bookmark className="h-4 w-4" />{post.saves_count}</Button>
             <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => void sharePost(post.id).then(loadPost)}><Share2 className="h-4 w-4" />{post.share_count}</Button>
             <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => { const reason = window.prompt("Ly do bao cao?"); if (reason) void reportPost(post.id, reason); }}><Flag className="h-4 w-4" />Report</Button>
-            <Button variant="ghost" className="h-8 gap-1.5 px-3 text-destructive" onClick={() => void handleDelete()}><Trash2 className="h-4 w-4" />Delete</Button>
+            {canDelete && <Button variant="ghost" className="h-8 gap-1.5 px-3 text-destructive" onClick={() => void handleDelete()}><Trash2 className="h-4 w-4" />Delete</Button>}
           </div>
         </CardContent>
       </Card>
