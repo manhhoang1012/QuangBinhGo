@@ -28,6 +28,10 @@ export interface AdminReview {
   place: Place;
   rating: number;
   content: string;
+  status: string;
+  report_count: number;
+  helpful_count: number;
+  reports?: Array<{ id: number; reason: string; detail?: string | null; status: string; created_at: string; reporter?: User | null }>;
   created_at: string;
   updated_at: string;
 }
@@ -138,6 +142,11 @@ export async function deleteComment(id: number) {
 
 export async function getAdminReviews() {
   const response = await api.get<AdminReview[]>("/admin/reviews");
+  return response.data;
+}
+
+export async function updatePlaceReviewStatus(id: number, status: "visible" | "hidden" | "deleted" | "reported") {
+  const response = await api.patch<AdminReview>(`/admin/place-reviews/${id}/status`, { status });
   return response.data;
 }
 

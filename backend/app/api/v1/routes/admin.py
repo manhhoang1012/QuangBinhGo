@@ -9,13 +9,13 @@ from app.api.dependencies import require_admin, require_moderator_or_admin
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.place import Category, Place
-from app.models.review_post import CommentReport, PlaceReview, PostComment, PostReport, ReviewPost
+from app.models.review_post import CommentReport, PlaceReview, PlaceReviewReport, PostComment, PostReport, ReviewPost
 from app.models.user import User
 from app.repositories.place_repository import PlaceRepository
 from app.repositories.review_post_repository import ReviewPostRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.place import CategoryCreate, CategoryRead, CategoryUpdate, PlaceCreate, PlaceRead, PlaceUpdate
-from app.schemas.review_post import AdminCommentRead, AdminPlaceReviewRead, AdminPostReportRead, CommentReportRead, CommentStatusUpdate, PostReportRead, PostStatusUpdate, ReviewPostRead
+from app.schemas.review_post import AdminCommentRead, AdminPlaceReviewRead, AdminPostReportRead, CommentReportRead, CommentStatusUpdate, PlaceReviewReportRead, PlaceReviewStatusUpdate, PostReportRead, PostStatusUpdate, ReviewPostRead
 from app.schemas.site_settings import SettingsUploadResponse, SiteSettingsPayload
 from app.schemas.user import AdminUserRead, MessageResponse, UserRoleUpdate, UserStatusUpdate
 from app.services.place_service import PlaceService
@@ -338,18 +338,60 @@ def admin_delete_comment(comment_id: int, _: User = Depends(require_moderator_or
     return MessageResponse(message="Comment deleted successfully.")
 
 
+@router.get("/place-reviews", response_model=list[AdminPlaceReviewRead])
 @router.get("/reviews", response_model=list[AdminPlaceReviewRead])
-def admin_list_reviews(_: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
-    return list(db.scalars(select(PlaceReview).options(selectinload(PlaceReview.author), selectinload(PlaceReview.place)).order_by(PlaceReview.created_at.desc())).all())
+def admin_list_reviews(
+    status_value: str | None = Query(default=None, alias="status"),
+    rating: int | None = Query(default=None, ge=1, le=5),
+    _: User = Depends(require_moderator_or_admin),
+    db: Session = Depends(get_db),
+):
+    stmt = select(PlaceReview).options(selectinload(PlaceReview.author), selectinload(PlaceReview.place)).order_by(PlaceReview.created_at.desc())
+    if status_value:
+        stmt = stmt.where(PlaceReview.status == status_value)
+    if rating:
+        stmt = stmt.where(PlaceReview.rating == rating)
+    reviews = list(db.scalars(stmt).all())
+    result = []
+    for review in reviews:
+        reports = list(db.scalars(select(PlaceReviewReport).options(selectinload(PlaceReviewReport.reporter)).where(PlaceReviewReport.review_id == review.id)).all())
+        result.append({**review.__dict__, "author": review.author, "place": review.place, "reports": [PlaceReviewReportRead.model_validate({**report.__dict__, "reporter": report.reporter}) for report in reports]})
+    return result
+
+
+@router.get("/place-reviews/reports", response_model=list[PlaceReviewReportRead])
+def admin_list_place_review_reports(_: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
+    reports = list(db.scalars(select(PlaceReviewReport).options(selectinload(PlaceReviewReport.reporter)).order_by(PlaceReviewReport.created_at.desc())).all())
+    return [PlaceReviewReportRead.model_validate({**report.__dict__, "reporter": report.reporter}) for report in reports]
+
+
+@router.patch("/place-reviews/{review_id}/status", response_model=AdminPlaceReviewRead)
+def admin_update_place_review_status(review_id: int, payload: PlaceReviewStatusUpdate, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
+    review = db.get(PlaceReview, review_id)
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found.")
+    review.status = payload.status
+    db.add(review)
+    db.commit()
+    place = db.get(Place, review.place_id)
+    if place:
+        average_rating, review_count = db.execute(select(func.avg(PlaceReview.rating), func.count(PlaceReview.id)).where(PlaceReview.place_id == place.id, PlaceReview.status == "visible")).one()
+        place.rating_avg = average_rating or 0
+        place.review_count = int(review_count or 0)
+        db.add(place)
+        db.commit()
+    return admin_list_reviews(status_value=None, rating=None, _=_, db=db)[0]
 
 
 @router.delete("/reviews/{review_id}", response_model=MessageResponse)
+@router.delete("/place-reviews/{review_id}", response_model=MessageResponse)
 def admin_delete_review(review_id: int, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
     review = db.get(PlaceReview, review_id)
     if not review:
         raise HTTPException(status_code=404, detail="Review not found.")
     place = db.get(Place, review.place_id)
-    db.delete(review)
+    review.status = "deleted"
+    db.add(review)
     db.commit()
     if place:
         average_rating, review_count = db.execute(

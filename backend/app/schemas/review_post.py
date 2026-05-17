@@ -155,6 +155,11 @@ class PlaceReviewRead(BaseModel):
     author: UserRead
     rating: int
     content: str
+    images: list[str] = Field(default_factory=list)
+    status: str = "visible"
+    helpful_count: int = 0
+    report_count: int = 0
+    helpful_by_me: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -163,12 +168,50 @@ class PlaceReviewRead(BaseModel):
 
 class PlaceReviewCreate(BaseModel):
     rating: int = Field(ge=1, le=5)
-    content: str = Field(min_length=1, max_length=2000)
+    content: str = Field(min_length=5, max_length=2000)
+    images: list[str] = Field(default_factory=list, max_length=10)
 
 
 class PlaceReviewUpdate(BaseModel):
     rating: int | None = Field(default=None, ge=1, le=5)
-    content: str | None = Field(default=None, min_length=1, max_length=2000)
+    content: str | None = Field(default=None, min_length=5, max_length=2000)
+    images: list[str] | None = Field(default=None, max_length=10)
+
+
+class RatingSummary(BaseModel):
+    average_rating: float = 0
+    review_count: int = 0
+    star_counts: dict[int, int] = Field(default_factory=dict)
+
+
+class PlaceReviewListRead(BaseModel):
+    items: list[PlaceReviewRead]
+    total: int
+    page: int
+    limit: int
+    total_pages: int
+    rating_summary: RatingSummary
+
+
+class PlaceReviewReportCreate(BaseModel):
+    reason: str = Field(pattern="^(false_info|spam|offensive|other)$")
+    detail: str | None = Field(default=None, max_length=1000)
+
+
+class PlaceReviewStatusUpdate(BaseModel):
+    status: str = Field(pattern="^(visible|hidden|deleted|reported)$")
+
+
+class PlaceReviewReportRead(BaseModel):
+    id: int
+    reason: str
+    detail: str | None = None
+    status: str
+    reporter: UserRead | None = None
+    review_id: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class PostStatusUpdate(BaseModel):
@@ -190,4 +233,4 @@ class AdminCommentRead(BaseModel):
 
 
 class AdminPlaceReviewRead(PlaceReviewRead):
-    pass
+    reports: list[PlaceReviewReportRead] = Field(default_factory=list)

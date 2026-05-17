@@ -135,6 +135,11 @@ export interface PlaceReview {
   author: User;
   rating: number;
   content: string;
+  images: string[];
+  status: string;
+  helpful_count: number;
+  report_count: number;
+  helpful_by_me?: boolean;
   created_at: string;
   updated_at: string;
 }

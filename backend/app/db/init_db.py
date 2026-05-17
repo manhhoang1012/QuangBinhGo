@@ -1,9 +1,9 @@
 from app.db.base import Base
 from app.db.session import engine
-from app.models import AuthToken, Category, CommentLike, CommentReport, Place, PlaceReview, PostComment, PostHide, PostLike, PostReport, PostSave, ReviewPost, SiteSettings, User, UserFollow
+from app.models import AuthToken, Category, CommentLike, CommentReport, Itinerary, ItineraryItem, Place, PlaceReview, PlaceReviewHelpful, PlaceReviewReport, PostComment, PostHide, PostLike, PostReport, PostSave, ReviewPost, SiteSettings, User, UserFollow
 from sqlalchemy import inspect, text
 
-__all__ = ["AuthToken", "Category", "CommentLike", "CommentReport", "Place", "PlaceReview", "PostComment", "PostHide", "PostLike", "PostReport", "PostSave", "ReviewPost", "SiteSettings", "User", "UserFollow"]
+__all__ = ["AuthToken", "Category", "CommentLike", "CommentReport", "Itinerary", "ItineraryItem", "Place", "PlaceReview", "PlaceReviewHelpful", "PlaceReviewReport", "PostComment", "PostHide", "PostLike", "PostReport", "PostSave", "ReviewPost", "SiteSettings", "User", "UserFollow"]
 
 
 def init_db() -> None:
@@ -78,6 +78,12 @@ def ensure_admin_content_columns() -> None:
             "status": "VARCHAR(30) DEFAULT 'visible' NOT NULL",
             "report_count": "INTEGER DEFAULT 0 NOT NULL",
         },
+        "place_reviews": {
+            "images": "JSON DEFAULT '[]' NOT NULL",
+            "status": "VARCHAR(30) DEFAULT 'visible' NOT NULL",
+            "helpful_count": "INTEGER DEFAULT 0 NOT NULL",
+            "report_count": "INTEGER DEFAULT 0 NOT NULL",
+        },
     }
 
     with engine.begin() as connection:
@@ -102,3 +108,8 @@ def ensure_admin_content_columns() -> None:
         if "post_comments" in tables:
             connection.execute(text("UPDATE post_comments SET status = 'visible' WHERE status IS NULL"))
             connection.execute(text("UPDATE post_comments SET report_count = 0 WHERE report_count IS NULL"))
+        if "place_reviews" in tables:
+            connection.execute(text("UPDATE place_reviews SET images = '[]' WHERE images IS NULL"))
+            connection.execute(text("UPDATE place_reviews SET status = 'visible' WHERE status IS NULL"))
+            connection.execute(text("UPDATE place_reviews SET helpful_count = 0 WHERE helpful_count IS NULL"))
+            connection.execute(text("UPDATE place_reviews SET report_count = 0 WHERE report_count IS NULL"))

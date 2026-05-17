@@ -1,17 +1,20 @@
 from math import asin, cos, radians, sin, sqrt
+from pathlib import Path
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user, require_admin
 from app.db.session import get_db
 from app.models.place import Place
-from app.models.review_post import PlaceReview
+from app.core.config import settings
+from app.models.review_post import PlaceReview, PlaceReviewHelpful, PlaceReviewReport
 from app.models.user import User
 from app.repositories.place_repository import PlaceRepository
 from app.schemas.place import PlaceCreate, PlaceDetailRead, PlaceRead, PlaceUpdate
-from app.schemas.review_post import PlaceReviewCreate, PlaceReviewRead, PlaceReviewUpdate
+from app.schemas.review_post import PlaceReviewCreate, PlaceReviewListRead, PlaceReviewRead, PlaceReviewReportCreate, PlaceReviewReportRead, PlaceReviewUpdate, RatingSummary
 from app.services.place_service import PlaceService
 
 router = APIRouter()
@@ -22,6 +25,9 @@ def get_place_service(db: Session = Depends(get_db)) -> PlaceService:
 
 
 PUBLIC_STATUSES = {"active", "published"}
+ALLOWED_REVIEW_IMAGE_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+MAX_REVIEW_IMAGE_BYTES = 5 * 1024 * 1024
+MAX_REVIEW_IMAGE_UPLOADS = 10
 
 
 def haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -37,7 +43,7 @@ def get_review_stats(db: Session, place_ids: list[int]) -> dict[int, tuple[float
         return {}
     rows = db.execute(
         select(PlaceReview.place_id, func.avg(PlaceReview.rating), func.count(PlaceReview.id))
-        .where(PlaceReview.place_id.in_(place_ids))
+        .where(PlaceReview.place_id.in_(place_ids), PlaceReview.status == "visible")
         .group_by(PlaceReview.place_id)
     ).all()
     return {place_id: (float(avg_rating or 0), int(review_count or 0)) for place_id, avg_rating, review_count in rows}
@@ -89,13 +95,41 @@ def get_public_place_or_404(db: Session, place_id: int) -> Place:
 
 def recalculate_place_rating(db: Session, place: Place) -> None:
     average_rating, review_count = db.execute(
-        select(func.avg(PlaceReview.rating), func.count(PlaceReview.id)).where(PlaceReview.place_id == place.id)
+        select(func.avg(PlaceReview.rating), func.count(PlaceReview.id)).where(PlaceReview.place_id == place.id, PlaceReview.status == "visible")
     ).one()
     place.rating_avg = average_rating or 0
     place.review_count = int(review_count or 0)
     db.add(place)
     db.commit()
     db.refresh(place)
+
+
+def build_review_read(review: PlaceReview, db: Session, current_user: User | None = None) -> PlaceReviewRead:
+    return PlaceReviewRead.model_validate({
+        **review.__dict__,
+        "place": review.place,
+        "author": review.author,
+        "helpful_by_me": bool(current_user and db.scalar(select(PlaceReviewHelpful).where(PlaceReviewHelpful.review_id == review.id, PlaceReviewHelpful.user_id == current_user.id))),
+    })
+
+
+def rating_summary(db: Session, place_id: int) -> RatingSummary:
+    rows = db.execute(select(PlaceReview.rating, func.count(PlaceReview.id)).where(PlaceReview.place_id == place_id, PlaceReview.status == "visible").group_by(PlaceReview.rating)).all()
+    star_counts = {star: 0 for star in range(1, 6)}
+    total = 0
+    weighted = 0
+    for rating, count in rows:
+        star_counts[int(rating)] = int(count)
+        total += int(count)
+        weighted += int(rating) * int(count)
+    return RatingSummary(average_rating=round(weighted / total, 2) if total else 0, review_count=total, star_counts=star_counts)
+
+
+def get_place_review_or_404(db: Session, place_id: int, review_id: int) -> PlaceReview:
+    review = db.get(PlaceReview, review_id)
+    if not review or review.place_id != place_id:
+        raise HTTPException(status_code=404, detail="Review not found.")
+    return review
 
 
 @router.get("", response_model=list[PlaceRead])
@@ -181,23 +215,74 @@ def semantic_search_places(q: str = Query(..., min_length=1), limit: int = Query
     return [build_place_read(place, review_stats=review_stats) for place in places]
 
 
-@router.get("/{place_id}/reviews", response_model=list[PlaceReviewRead])
+@router.post("/{place_id}/reviews/uploads")
+async def upload_place_review_images(
+    place_id: int,
+    files: list[UploadFile] = File(...),
+    _: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, list[str]]:
+    get_public_place_or_404(db, place_id)
+    if len(files) > MAX_REVIEW_IMAGE_UPLOADS:
+        raise HTTPException(status_code=400, detail="You can upload up to 10 images.")
+    upload_dir = Path(__file__).resolve().parents[4] / "static" / "uploads" / "place-reviews"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    urls: list[str] = []
+    for file in files:
+        suffix = ALLOWED_REVIEW_IMAGE_TYPES.get(file.content_type or "")
+        if not suffix:
+            raise HTTPException(status_code=400, detail="Only jpg, png, and webp images are allowed.")
+        content = await file.read()
+        if len(content) > MAX_REVIEW_IMAGE_BYTES:
+            raise HTTPException(status_code=400, detail="Each image must be 5MB or smaller.")
+        filename = f"{uuid4().hex}{suffix}"
+        (upload_dir / filename).write_bytes(content)
+        urls.append(f"{settings.backend_url.rstrip('/')}/static/uploads/place-reviews/{filename}")
+    return {"urls": urls}
+
+
+@router.get("/{place_id}/reviews", response_model=PlaceReviewListRead)
 def list_place_reviews(
     place_id: int,
-    skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=100),
+    rating: int | None = Query(default=None, ge=1, le=5),
+    sort: str = Query(default="newest"),
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=10, ge=1, le=100),
+    current_user: User | None = Depends(lambda: None),
     db: Session = Depends(get_db),
-) -> list[PlaceReview]:
+) -> PlaceReviewListRead:
     get_public_place_or_404(db, place_id)
-    return list(
-        db.scalars(
-            select(PlaceReview)
-            .where(PlaceReview.place_id == place_id)
-            .order_by(PlaceReview.created_at.desc())
-            .offset(skip)
-            .limit(limit)
-        ).all()
+    statement = select(PlaceReview).where(PlaceReview.place_id == place_id, PlaceReview.status == "visible")
+    if rating:
+        statement = statement.where(PlaceReview.rating == rating)
+    all_reviews = list(db.scalars(statement).all())
+    if sort == "highest":
+        all_reviews.sort(key=lambda review: (review.rating, review.created_at), reverse=True)
+    elif sort == "lowest":
+        all_reviews.sort(key=lambda review: (review.rating, review.created_at))
+    elif sort == "helpful":
+        all_reviews.sort(key=lambda review: (review.helpful_count, review.created_at), reverse=True)
+    else:
+        all_reviews.sort(key=lambda review: review.created_at, reverse=True)
+    total = len(all_reviews)
+    start = (page - 1) * limit
+    items = all_reviews[start:start + limit]
+    return PlaceReviewListRead(
+        items=[build_review_read(review, db, current_user) for review in items],
+        total=total,
+        page=page,
+        limit=limit,
+        total_pages=(total + limit - 1) // limit if total else 0,
+        rating_summary=rating_summary(db, place_id),
     )
+
+
+@router.get("/{place_id}/reviews/featured", response_model=list[PlaceReviewRead])
+def featured_place_reviews(place_id: int, limit: int = Query(default=3, ge=1, le=10), db: Session = Depends(get_db)) -> list[PlaceReviewRead]:
+    get_public_place_or_404(db, place_id)
+    reviews = list(db.scalars(select(PlaceReview).where(PlaceReview.place_id == place_id, PlaceReview.status == "visible")).all())
+    reviews.sort(key=lambda review: (review.helpful_count, review.rating, review.created_at), reverse=True)
+    return [build_review_read(review, db) for review in reviews[:limit]]
 
 
 @router.post("/{place_id}/reviews", response_model=PlaceReviewRead, status_code=status.HTTP_201_CREATED)
@@ -208,10 +293,10 @@ def create_place_review(
     db: Session = Depends(get_db),
 ) -> PlaceReview:
     place = get_public_place_or_404(db, place_id)
-    existing = db.scalar(select(PlaceReview).where(PlaceReview.place_id == place_id, PlaceReview.user_id == current_user.id))
+    existing = db.scalar(select(PlaceReview).where(PlaceReview.place_id == place_id, PlaceReview.user_id == current_user.id, PlaceReview.status != "deleted"))
     if existing:
         raise HTTPException(status_code=409, detail="You already reviewed this place.")
-    review = PlaceReview(place_id=place_id, user_id=current_user.id, rating=payload.rating, content=payload.content)
+    review = PlaceReview(place_id=place_id, user_id=current_user.id, rating=payload.rating, content=payload.content, images=payload.images)
     db.add(review)
     db.commit()
     db.refresh(review)
@@ -228,9 +313,7 @@ def update_place_review(
     db: Session = Depends(get_db),
 ) -> PlaceReview:
     place = get_public_place_or_404(db, place_id)
-    review = db.get(PlaceReview, review_id)
-    if not review or review.place_id != place_id:
-        raise HTTPException(status_code=404, detail="Review not found.")
+    review = get_place_review_or_404(db, place_id, review_id)
     if review.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only update your own review.")
     for field, value in payload.model_dump(exclude_unset=True).items():
@@ -250,15 +333,60 @@ def delete_place_review(
     db: Session = Depends(get_db),
 ) -> Response:
     place = get_public_place_or_404(db, place_id)
-    review = db.get(PlaceReview, review_id)
-    if not review or review.place_id != place_id:
-        raise HTTPException(status_code=404, detail="Review not found.")
+    review = get_place_review_or_404(db, place_id, review_id)
     if review.user_id != current_user.id and current_user.role not in {"moderator", "admin"}:
         raise HTTPException(status_code=403, detail="You can only delete your own review.")
-    db.delete(review)
+    review.status = "deleted"
+    db.add(review)
     db.commit()
     recalculate_place_rating(db, place)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{place_id}/reviews/{review_id}/helpful")
+def mark_review_helpful(place_id: int, review_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    review = get_place_review_or_404(db, place_id, review_id)
+    if review.user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot mark your own review as helpful.")
+    existing = db.scalar(select(PlaceReviewHelpful).where(PlaceReviewHelpful.review_id == review_id, PlaceReviewHelpful.user_id == current_user.id))
+    if not existing:
+        db.add(PlaceReviewHelpful(review_id=review_id, user_id=current_user.id))
+        review.helpful_count = (review.helpful_count or 0) + 1
+        db.add(review)
+        db.commit()
+    return {"helpful_by_me": True, "helpful_count": review.helpful_count}
+
+
+@router.delete("/{place_id}/reviews/{review_id}/helpful")
+def unmark_review_helpful(place_id: int, review_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    review = get_place_review_or_404(db, place_id, review_id)
+    existing = db.scalar(select(PlaceReviewHelpful).where(PlaceReviewHelpful.review_id == review_id, PlaceReviewHelpful.user_id == current_user.id))
+    if existing:
+        db.delete(existing)
+        review.helpful_count = max(0, (review.helpful_count or 0) - 1)
+        db.add(review)
+        db.commit()
+    return {"helpful_by_me": False, "helpful_count": review.helpful_count}
+
+
+@router.post("/{place_id}/reviews/{review_id}/reports", response_model=PlaceReviewReportRead, status_code=status.HTTP_201_CREATED)
+def report_place_review(place_id: int, review_id: int, payload: PlaceReviewReportCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> PlaceReviewReportRead:
+    review = get_place_review_or_404(db, place_id, review_id)
+    if review.user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot report your own review.")
+    existing = db.scalar(select(PlaceReviewReport).where(PlaceReviewReport.review_id == review_id, PlaceReviewReport.user_id == current_user.id))
+    if existing:
+        return PlaceReviewReportRead.model_validate(existing)
+    report = PlaceReviewReport(review_id=review_id, user_id=current_user.id, reason=payload.reason, detail=payload.detail)
+    review.report_count = (review.report_count or 0) + 1
+    if review.report_count >= 3 and review.status == "visible":
+        review.status = "reported"
+    db.add(report)
+    db.add(review)
+    db.commit()
+    db.refresh(report)
+    recalculate_place_rating(db, db.get(Place, place_id))
+    return PlaceReviewReportRead.model_validate(report)
 
 
 @router.get("/{slug_or_id}", response_model=PlaceDetailRead)

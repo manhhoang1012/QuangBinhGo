@@ -125,6 +125,34 @@ class PlaceReview(TimestampMixin, Base):
     place_id: Mapped[int] = mapped_column(ForeignKey("places.id", ondelete="CASCADE"), index=True, nullable=False)
     rating: Mapped[int] = mapped_column(nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    images: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="visible", nullable=False)
+    helpful_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    report_count: Mapped[int] = mapped_column(default=0, nullable=False)
 
     author = relationship("User")
     place = relationship("Place")
+
+
+class PlaceReviewHelpful(TimestampMixin, Base):
+    __tablename__ = "place_review_helpful"
+    __table_args__ = (UniqueConstraint("review_id", "user_id", name="uq_place_review_helpful_review_user"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    review_id: Mapped[int] = mapped_column(ForeignKey("place_reviews.id", ondelete="CASCADE"), index=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+
+
+class PlaceReviewReport(TimestampMixin, Base):
+    __tablename__ = "place_review_reports"
+    __table_args__ = (UniqueConstraint("review_id", "user_id", name="uq_place_review_reports_review_user"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    review_id: Mapped[int] = mapped_column(ForeignKey("place_reviews.id", ondelete="CASCADE"), index=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    reason: Mapped[str] = mapped_column(String(50), nullable=False)
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="open", nullable=False)
+
+    reporter = relationship("User")
+    review = relationship("PlaceReview")

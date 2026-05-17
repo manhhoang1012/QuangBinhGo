@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CalendarDays, ExternalLink, Heart, MapPin, Phone, Star } from "lucide-react";
+import { CalendarDays, ExternalLink, Heart, ImagePlus, MapPin, Phone, Star, X } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlaceImageGallery } from "@/components/places/PlaceImageGallery";
 import { PlaceLocationMap } from "@/components/places/PlaceLocationMap";
 import { type Place, type PlaceReview, type ReviewPost, type User } from "@/services/api";
-import { createPlaceReview, deletePlaceReview, getPlace, getPlaceReviews, updatePlaceReview } from "@/services/placeApi";
+import { createPlaceReview, deletePlaceReview, getFeaturedPlaceReviews, getPlace, getPlaceReviews, markReviewHelpful, reportPlaceReview, unmarkReviewHelpful, updatePlaceReview, uploadPlaceReviewImages, type PlaceReviewList } from "@/services/placeApi";
 import { getCommunityFeed } from "@/services/postApi";
 import { getCurrentProfile } from "@/services/userApi";
 
@@ -17,9 +17,15 @@ export function PlaceDetailPage() {
   const [place, setPlace] = useState<Place | null>(null);
   const [relatedPosts, setRelatedPosts] = useState<ReviewPost[]>([]);
   const [reviews, setReviews] = useState<PlaceReview[]>([]);
+  const [featuredReviews, setFeaturedReviews] = useState<PlaceReview[]>([]);
+  const [reviewSummary, setReviewSummary] = useState<PlaceReviewList["rating_summary"] | null>(null);
+  const [reviewFilter, setReviewFilter] = useState("");
+  const [reviewSort, setReviewSort] = useState("newest");
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewContent, setReviewContent] = useState("");
+  const [reviewFiles, setReviewFiles] = useState<File[]>([]);
+  const [reviewImages, setReviewImages] = useState<string[]>([]);
   const [reviewNotice, setReviewNotice] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,16 +37,19 @@ export function PlaceDetailPage() {
       try {
         const placeData = await getPlace(placeId ?? "");
         setPlace(placeData);
-        const [feed, reviewData] = await Promise.all([getCommunityFeed("latest"), getPlaceReviews(placeData.id)]);
+        const [feed, reviewData, featured] = await Promise.all([getCommunityFeed("latest"), getPlaceReviews(placeData.id), getFeaturedPlaceReviews(placeData.id)]);
         setRelatedPosts(feed.filter((post) => post.place_id === placeData.id));
-        setReviews(reviewData);
+        setReviews(reviewData.items);
+        setReviewSummary(reviewData.rating_summary);
+        setFeaturedReviews(featured);
         try {
           const user = await getCurrentProfile();
           setCurrentUser(user);
-          const ownReview = reviewData.find((review) => review.author.id === user.id);
+          const ownReview = reviewData.items.find((review) => review.author.id === user.id);
           if (ownReview) {
             setReviewRating(ownReview.rating);
             setReviewContent(ownReview.content);
+            setReviewImages(ownReview.images ?? []);
           }
         } catch {
           setCurrentUser(null);
@@ -66,9 +75,15 @@ export function PlaceDetailPage() {
   const ownReview = currentUser ? reviews.find((review) => review.author.id === currentUser.id) : null;
 
   const reloadReviews = async () => {
-    const [placeData, reviewData] = await Promise.all([getPlace(place.id), getPlaceReviews(place.id)]);
+    const [placeData, reviewData, featured] = await Promise.all([
+      getPlace(place.id),
+      getPlaceReviews(place.id, { rating: reviewFilter ? Number(reviewFilter) : undefined, sort: reviewSort }),
+      getFeaturedPlaceReviews(place.id),
+    ]);
     setPlace(placeData);
-    setReviews(reviewData);
+    setReviews(reviewData.items);
+    setReviewSummary(reviewData.rating_summary);
+    setFeaturedReviews(featured);
   };
 
   const submitReview = async () => {
@@ -77,13 +92,16 @@ export function PlaceDetailPage() {
       return;
     }
     try {
+      const uploadedImages = reviewFiles.length ? await uploadPlaceReviewImages(place.id, reviewFiles) : [];
+      const images = [...reviewImages, ...uploadedImages];
       if (ownReview) {
-        await updatePlaceReview(place.id, ownReview.id, { rating: reviewRating, content: reviewContent.trim() });
+        await updatePlaceReview(place.id, ownReview.id, { rating: reviewRating, content: reviewContent.trim(), images });
         setReviewNotice("Đã cập nhật đánh giá.");
       } else {
-        await createPlaceReview(place.id, { rating: reviewRating, content: reviewContent.trim() });
+        await createPlaceReview(place.id, { rating: reviewRating, content: reviewContent.trim(), images });
         setReviewNotice("Đã gửi đánh giá.");
       }
+      setReviewFiles([]);
       await reloadReviews();
     } catch {
       setReviewNotice("Không thể lưu đánh giá. Mỗi tài khoản chỉ đánh giá một lần cho mỗi địa điểm.");
@@ -101,6 +119,27 @@ export function PlaceDetailPage() {
     } catch {
       setReviewNotice("Bạn chỉ có thể xóa đánh giá của chính mình.");
     }
+  };
+
+  const addReviewFiles = (files: FileList | null) => {
+    if (!files) return;
+    const next = [...reviewFiles];
+    for (const file of Array.from(files)) {
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+        setReviewNotice("Chi ho tro anh jpg, png hoac webp.");
+        continue;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setReviewNotice("Moi anh toi da 5MB.");
+        continue;
+      }
+      if (next.length + reviewImages.length >= 10) {
+        setReviewNotice("Toi da 10 anh cho moi danh gia.");
+        break;
+      }
+      next.push(file);
+    }
+    setReviewFiles(next);
   };
 
   return (
@@ -217,8 +256,29 @@ export function PlaceDetailPage() {
           <section className="mt-10">
             <h2 className="text-2xl font-semibold">Đánh giá địa điểm</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              {Number(place.rating_avg).toFixed(1)} sao từ {place.review_count ?? reviews.length} lượt đánh giá
+              {Number(reviewSummary?.average_rating ?? place.rating_avg).toFixed(1)} sao từ {reviewSummary?.review_count ?? place.review_count ?? reviews.length} lượt đánh giá
             </p>
+            {reviewSummary && (
+              <div className="mt-4 grid gap-2 text-sm text-muted-foreground">
+                {[5, 4, 3, 2, 1].map((star) => <button className="text-left hover:text-primary" key={star} onClick={() => { setReviewFilter(String(star)); void reloadReviews(); }} type="button">{star} sao: {reviewSummary.star_counts[star] ?? 0}</button>)}
+              </div>
+            )}
+            {featuredReviews.length > 0 && (
+              <div className="mt-4 grid gap-3">
+                <h3 className="font-semibold">Review nổi bật</h3>
+                {featuredReviews.slice(0, 3).map((review) => <Card key={review.id}><CardContent className="pt-4 text-sm"><strong>{review.rating}/5</strong> - {review.content}</CardContent></Card>)}
+              </div>
+            )}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button variant={reviewFilter === "" ? "secondary" : "outline"} onClick={() => { setReviewFilter(""); void reloadReviews(); }}>Tất cả</Button>
+              {[5, 4, 3, 2, 1].map((star) => <Button key={star} variant={reviewFilter === String(star) ? "secondary" : "outline"} onClick={() => { setReviewFilter(String(star)); void reloadReviews(); }}>{star} sao</Button>)}
+              <select className="rounded-md border bg-background px-3 py-2 text-sm" value={reviewSort} onChange={(event) => { setReviewSort(event.target.value); void reloadReviews(); }}>
+                <option value="newest">Mới nhất</option>
+                <option value="highest">Cao nhất</option>
+                <option value="lowest">Thấp nhất</option>
+                <option value="helpful">Hữu ích</option>
+              </select>
+            </div>
             {reviewNotice && <div className="mt-4 rounded-md border bg-muted/40 p-3 text-sm">{reviewNotice}</div>}
             {currentUser ? (
               <Card className="mt-4">
@@ -241,6 +301,16 @@ export function PlaceDetailPage() {
                     placeholder="Viết cảm nhận của bạn về địa điểm này"
                     value={reviewContent}
                   />
+                  <label className="flex h-24 cursor-pointer items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
+                    <ImagePlus className="mr-2 h-4 w-4" /> Chọn ảnh review
+                    <input accept="image/jpeg,image/png,image/webp" className="hidden" multiple onChange={(event) => addReviewFiles(event.target.files)} type="file" />
+                  </label>
+                  {(reviewImages.length > 0 || reviewFiles.length > 0) && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {reviewImages.map((image, index) => <div className="relative" key={image}><img className="h-20 w-full rounded-md object-cover" src={image} /><button className="absolute right-1 top-1 rounded bg-background p-1" onClick={() => setReviewImages((current) => current.filter((_, i) => i !== index))} type="button"><X className="h-3 w-3" /></button></div>)}
+                      {reviewFiles.map((file, index) => <div className="relative" key={`${file.name}-${index}`}><img className="h-20 w-full rounded-md object-cover" src={URL.createObjectURL(file)} /><button className="absolute right-1 top-1 rounded bg-background p-1" onClick={() => setReviewFiles((current) => current.filter((_, i) => i !== index))} type="button"><X className="h-3 w-3" /></button></div>)}
+                    </div>
+                  )}
                   <div className="flex gap-2">
                     <Button onClick={() => void submitReview()}>{ownReview ? "Cập nhật đánh giá" : "Gửi đánh giá"}</Button>
                     {ownReview && <Button onClick={() => void removeReview(ownReview)} variant="outline">Xóa đánh giá</Button>}
@@ -270,6 +340,13 @@ export function PlaceDetailPage() {
                       </div>
                     </div>
                     <p className="mt-3 text-sm leading-6 text-muted-foreground">{review.content}</p>
+                    {review.images?.length > 0 && <div className="mt-3 grid grid-cols-3 gap-2">{review.images.map((image) => <img className="h-20 rounded-md object-cover" key={image} src={image} />)}</div>}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button variant="outline" onClick={() => void (review.helpful_by_me ? unmarkReviewHelpful(place.id, review.id) : markReviewHelpful(place.id, review.id)).then(reloadReviews)}>
+                        Hữu ích ({review.helpful_count})
+                      </Button>
+                      {currentUser?.id !== review.author.id && <Button variant="outline" onClick={() => { const reason = window.prompt("Lý do: false_info, spam, offensive, other", "false_info") as "false_info" | "spam" | "offensive" | "other" | null; if (reason) void reportPlaceReview(place.id, review.id, { reason }).then(() => setReviewNotice("Đã báo cáo đánh giá.")); }}>Báo cáo</Button>}
+                    </div>
                   </CardContent>
                 </Card>
               ))}
