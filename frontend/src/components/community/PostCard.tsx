@@ -1,6 +1,7 @@
-import { Bookmark, EyeOff, Flag, Heart, MessageCircle, MoreHorizontal, Share2, UserPlus } from "lucide-react";
+import { Bookmark, EyeOff, Flag, Heart, MessageCircle, MoreHorizontal, Share2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { FollowButton } from "@/components/community/FollowButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,10 +14,9 @@ interface PostCardProps {
   onShare: (post: ReviewPost) => void;
   onReport: (post: ReviewPost) => void;
   onHide?: (post: ReviewPost) => void;
-  onFollow?: (username?: string | null) => void;
 }
 
-export function PostCard({ post, onLike, onSave, onShare, onReport, onHide, onFollow }: PostCardProps) {
+export function PostCard({ post, onLike, onSave, onShare, onReport, onHide }: PostCardProps) {
   const hero = post.images[0] ?? post.place?.cover_image ?? post.place?.images?.[0];
   return (
     <Card className="overflow-hidden">
@@ -44,10 +44,7 @@ export function PostCard({ post, onLike, onSave, onShare, onReport, onHide, onFo
             {post.visibility !== "public" && <Badge>{post.visibility}</Badge>}
           </div>
           <div className="flex items-center gap-2">
-            <button className="inline-flex items-center gap-1 hover:text-primary" onClick={() => onFollow?.(post.author.username)}>
-              <UserPlus className="h-4 w-4" />
-              Theo doi
-            </button>
+            <FollowButton className="h-8 px-3" username={post.author.username} initialIsFollowing={post.author.is_following} />
             <MoreHorizontal className="h-4 w-4" />
           </div>
         </div>

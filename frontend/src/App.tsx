@@ -73,6 +73,10 @@ const router = createBrowserRouter([
         element: <SavedPostsPage />,
       },
       {
+        path: "community/following",
+        element: <CommunityFeedPage initialFeedType="following" />,
+      },
+      {
         path: "profile",
         element: <ProfilePage />,
       },

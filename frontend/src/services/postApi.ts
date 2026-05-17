@@ -119,16 +119,6 @@ export async function reportPost(postId: number, reason: string, description?: s
   return response.data;
 }
 
-export async function followUser(username: string) {
-  const response = await api.post(`/users/${username}/follow`);
-  return response.data;
-}
-
-export async function unfollowUser(username: string) {
-  const response = await api.delete(`/users/${username}/follow`);
-  return response.data;
-}
-
 export async function sharePost(postId: number) {
   await api.post(`/review-posts/${postId}/share`);
   const url = `${window.location.origin}/community/${postId}`;

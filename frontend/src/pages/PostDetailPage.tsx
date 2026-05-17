@@ -3,6 +3,7 @@ import { Bookmark, Flag, Heart, MessageCircle, Share2, Trash2 } from "lucide-rea
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { CommentThread } from "@/components/community/CommentThread";
+import { FollowButton } from "@/components/community/FollowButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -69,6 +70,7 @@ export function PostDetailPage() {
         <CardContent className="space-y-5 pt-6">
           <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
             <Link className="font-medium text-foreground hover:text-primary" to={`/u/${post.author.username}`}>{post.author.full_name}</Link>
+            <FollowButton className="h-8 px-3" username={post.author.username} initialIsFollowing={post.author.is_following} />
             {post.place && (
               <>
                 <span>-</span>

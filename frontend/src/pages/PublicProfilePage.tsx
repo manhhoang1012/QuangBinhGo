@@ -4,8 +4,9 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { FollowButton } from "@/components/community/FollowButton";
 import { type ReviewPost, type User } from "@/services/api";
-import { getCurrentProfile, getPublicProfile, getUserPosts } from "@/services/userApi";
+import { getCurrentProfile, getFollowers, getFollowing, getPublicProfile, getUserPosts } from "@/services/userApi";
 
 export function PublicProfilePage() {
   const { username = "" } = useParams();
@@ -13,6 +14,7 @@ export function PublicProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [posts, setPosts] = useState<ReviewPost[]>([]);
+  const [followList, setFollowList] = useState<{ title: string; users: User[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -70,6 +72,16 @@ export function PublicProfilePage() {
             </Button>
           </Link>
         )}
+        {!isOwnProfile && (
+          <FollowButton
+            username={user.username}
+            initialIsFollowing={user.is_following}
+            onChanged={({ isFollowing, followersCount, message }) => {
+              if (followersCount >= 0) setUser((current) => current ? { ...current, followers_count: followersCount, is_following: isFollowing } : current);
+              setError(message.includes("Khong") ? message : null);
+            }}
+          />
+        )}
       </div>
       <div className="overflow-hidden rounded-lg border bg-muted/40">
         <div className="h-44 bg-primary/15">{user.cover_image_url && <img alt="Cover" className="h-full w-full object-cover" src={user.cover_image_url} />}</div>
@@ -86,9 +98,36 @@ export function PublicProfilePage() {
             </div>
           </div>
           {user.bio && <p className="mt-4 max-w-2xl text-muted-foreground">{user.bio}</p>}
+          <div className="mt-4 flex flex-wrap gap-4 text-sm">
+            <button className="font-medium hover:text-primary" onClick={() => void getFollowers(username).then((users) => setFollowList({ title: "Followers", users }))} type="button">
+              {user.followers_count ?? 0} followers
+            </button>
+            <button className="font-medium hover:text-primary" onClick={() => void getFollowing(username).then((users) => setFollowList({ title: "Following", users }))} type="button">
+              {user.following_count ?? 0} following
+            </button>
+          </div>
           <SocialLinks user={user} />
         </div>
       </div>
+      {followList && (
+        <Card className="mt-6">
+          <CardContent className="pt-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold">{followList.title}</h2>
+              <Button variant="outline" onClick={() => setFollowList(null)}>Close</Button>
+            </div>
+            <div className="grid gap-3">
+              {followList.users.length === 0 && <p className="text-sm text-muted-foreground">No users yet.</p>}
+              {followList.users.map((item) => (
+                <div className="flex items-center justify-between gap-3 rounded-md border p-3" key={item.id}>
+                  <Link className="font-medium hover:text-primary" to={`/u/${item.username}`}>{item.full_name}</Link>
+                  <FollowButton username={item.username} initialIsFollowing={item.is_following} />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
       <h2 className="mt-8 text-2xl font-semibold">Bài đã đăng</h2>
       <div className="mt-4 grid gap-4">
         {posts.length === 0 && <Card><CardContent className="pt-5 text-sm text-muted-foreground">Người dùng này chưa đăng bài nào.</CardContent></Card>}

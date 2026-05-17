@@ -4,6 +4,7 @@ from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.review_post import CommentLike, PlaceReview, PostComment, PostHide, PostLike, PostReport, PostSave, ReviewPost, UserFollow
+from app.models.user import User
 from app.schemas.review_post import CommentCreate, ReviewPostCreate, ReviewPostUpdate
 
 
@@ -38,6 +39,7 @@ class ReviewPostRepository:
         viewer_following_ids: list[int] | None = None,
         place_id: int | None = None,
         hashtag: str | None = None,
+        public_only: bool = False,
         skip: int = 0,
         limit: int = 20,
     ) -> Sequence[tuple[ReviewPost, int, int, int]]:
@@ -48,6 +50,7 @@ class ReviewPostRepository:
             viewer_following_ids=viewer_following_ids,
             place_id=place_id,
             hashtag=hashtag,
+            public_only=public_only,
             skip=skip,
             limit=limit,
         )
@@ -62,6 +65,7 @@ class ReviewPostRepository:
         viewer_following_ids: list[int] | None = None,
         place_id: int | None = None,
         hashtag: str | None = None,
+        public_only: bool = False,
         drafts_only: bool = False,
         include_hidden: bool = False,
         sort: str = "latest",
@@ -93,10 +97,12 @@ class ReviewPostRepository:
 
         if drafts_only:
             statement = statement.where(ReviewPost.is_draft.is_(True))
-        else:
+        elif not include_hidden:
             statement = statement.where(ReviewPost.is_draft.is_(False))
 
-        if current_user_id is not None:
+        if public_only and not include_hidden:
+            statement = statement.where(ReviewPost.visibility == "public")
+        elif current_user_id is not None and not include_hidden:
             follower_visible_ids = viewer_following_ids or []
             statement = statement.where(
                 or_(
@@ -105,7 +111,7 @@ class ReviewPostRepository:
                     (ReviewPost.visibility == "followers") & (ReviewPost.user_id.in_(follower_visible_ids)),
                 )
             )
-        else:
+        elif not include_hidden:
             statement = statement.where(ReviewPost.visibility == "public")
 
         if user_id is not None:
@@ -297,6 +303,34 @@ class ReviewPostRepository:
     def remove_follow(self, *, follower_id: int, following_id: int) -> None:
         self.db.execute(delete(UserFollow).where(UserFollow.follower_id == follower_id, UserFollow.following_id == following_id))
         self.db.commit()
+
+    def count_followers(self, *, user_id: int) -> int:
+        return self.db.scalar(select(func.count(UserFollow.id)).where(UserFollow.following_id == user_id)) or 0
+
+    def count_following(self, *, user_id: int) -> int:
+        return self.db.scalar(select(func.count(UserFollow.id)).where(UserFollow.follower_id == user_id)) or 0
+
+    def list_followers(self, *, user_id: int, skip: int = 0, limit: int = 50) -> Sequence[User]:
+        statement = (
+            select(User)
+            .join(UserFollow, UserFollow.follower_id == User.id)
+            .where(UserFollow.following_id == user_id, User.deleted_at.is_(None), User.is_active.is_(True))
+            .order_by(UserFollow.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        return self.db.scalars(statement).all()
+
+    def list_following(self, *, user_id: int, skip: int = 0, limit: int = 50) -> Sequence[User]:
+        statement = (
+            select(User)
+            .join(UserFollow, UserFollow.following_id == User.id)
+            .where(UserFollow.follower_id == user_id, User.deleted_at.is_(None), User.is_active.is_(True))
+            .order_by(UserFollow.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        return self.db.scalars(statement).all()
 
     def create_report(self, *, post_id: int, user_id: int, reason: str, description: str | None) -> PostReport:
         existing = self.db.scalar(select(PostReport).where(PostReport.post_id == post_id, PostReport.user_id == user_id))

@@ -7,15 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { type ReviewPost } from "@/services/api";
-import { followUser, getCommunityFeed, hidePost, likePost, reportPost, savePost, sharePost, type FeedType } from "@/services/postApi";
+import { getCommunityFeed, hidePost, likePost, reportPost, savePost, sharePost, type FeedType } from "@/services/postApi";
 
 const pageSize = 10;
 
-export function CommunityFeedPage() {
+export function CommunityFeedPage({ initialFeedType = "latest" }: { initialFeedType?: FeedType }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [posts, setPosts] = useState<ReviewPost[]>([]);
-  const [feedType, setFeedType] = useState<FeedType>("latest");
+  const [feedType, setFeedType] = useState<FeedType>(initialFeedType);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -96,7 +96,6 @@ export function CommunityFeedPage() {
           <PostCard
             key={post.id}
             post={post}
-            onFollow={(username) => username && void followUser(username).catch(() => setError("Please sign in before following users."))}
             onHide={(item) => void hidePost(item.id).then(() => setPosts((current) => current.filter((post) => post.id !== item.id))).catch(() => setError("Please sign in before hiding posts."))}
             onLike={(item) => void likePost(item.id).then(refreshCounts).catch(() => setError("Please sign in before liking posts."))}
             onReport={(item) => void report(item).catch(() => setError("Could not report this post."))}

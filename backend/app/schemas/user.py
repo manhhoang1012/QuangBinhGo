@@ -33,6 +33,9 @@ class UserRead(BaseModel):
     phone_number: str | None = None
     social_links: SocialLinks | None = None
     oauth_provider: str | None = None
+    followers_count: int = 0
+    following_count: int = 0
+    is_following: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -47,8 +50,23 @@ class PublicUserRead(BaseModel):
     location: str | None = None
     social_links: SocialLinks | None = None
     created_at: datetime | None = None
+    followers_count: int = 0
+    following_count: int = 0
+    is_following: bool = False
 
     model_config = {"from_attributes": True}
+
+
+class FollowStatusRead(BaseModel):
+    username: str | None = None
+    is_following: bool
+    followers_count: int
+    following_count: int
+
+
+class FollowActionResponse(FollowStatusRead):
+    changed: bool = False
+    message: str
 
 
 class UserProfileUpdate(BaseModel):

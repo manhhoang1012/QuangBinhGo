@@ -1,4 +1,5 @@
 import { api, type User } from "@/services/api";
+export { getFollowers, getFollowing, getFollowStatus } from "@/services/followApi";
 
 export async function getCurrentProfile() {
   const response = await api.get<User>("/users/me");

@@ -94,6 +94,7 @@ class ReviewPostService:
             current_user_id=current_user.id if current_user else None,
             following_user_ids=following_ids if following_only else None,
             viewer_following_ids=following_ids if current_user else None,
+            public_only=following_only,
             place_id=place_id,
             hashtag=self._normalize_tag(hashtag) if hashtag else None,
             skip=skip,
@@ -216,15 +217,22 @@ class ReviewPostService:
     def follow_user(self, *, current_user: User, target_user: User) -> dict[str, bool]:
         if current_user.id == target_user.id:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot follow yourself.")
-        if not self.review_post_repository.get_follow(follower_id=current_user.id, following_id=target_user.id):
-            self.review_post_repository.add_follow(follower_id=current_user.id, following_id=target_user.id)
-        return {"following": True}
+        if not target_user.is_active:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot follow a blocked user.")
+        existing = self.review_post_repository.get_follow(follower_id=current_user.id, following_id=target_user.id)
+        if existing:
+            return {"following": True, "changed": False, "message": "Already following."}
+        self.review_post_repository.add_follow(follower_id=current_user.id, following_id=target_user.id)
+        return {"following": True, "changed": True, "message": "Followed successfully."}
 
     def unfollow_user(self, *, current_user: User, target_user: User) -> dict[str, bool]:
         if current_user.id == target_user.id:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot unfollow yourself.")
+        existing = self.review_post_repository.get_follow(follower_id=current_user.id, following_id=target_user.id)
+        if not existing:
+            return {"following": False, "changed": False, "message": "You were not following this user."}
         self.review_post_repository.remove_follow(follower_id=current_user.id, following_id=target_user.id)
-        return {"following": False}
+        return {"following": False, "changed": True, "message": "Unfollowed successfully."}
 
     def report_post(self, *, post_id: int, current_user: User, report_create: PostReportCreate) -> PostReportRead:
         self._get_existing_post(post_id)
