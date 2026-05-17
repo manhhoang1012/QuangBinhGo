@@ -30,7 +30,7 @@ def get_ai_search_service(db: Session = Depends(get_db)) -> AiSearchService:
 
 
 def get_itinerary_service(db: Session = Depends(get_db)) -> ItineraryService:
-    return ItineraryService(PlaceRepository(db))
+    return ItineraryService(db)
 
 
 @router.post("/search", response_model=SemanticSearchResponse)
@@ -49,4 +49,4 @@ def generate_itinerary(
     itinerary_request: ItineraryRequest,
     itinerary_service: ItineraryService = Depends(get_itinerary_service),
 ) -> ItineraryResponse:
-    return itinerary_service.generate(itinerary_request)
+    return itinerary_service.generate_ai(itinerary_request)

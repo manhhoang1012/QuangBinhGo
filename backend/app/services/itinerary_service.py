@@ -1,187 +1,156 @@
-from collections.abc import Sequence
+from uuid import uuid4
 
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import select
+
+from app.models.itinerary import Itinerary, ItineraryItem
 from app.models.place import Place
-from app.repositories.place_repository import PlaceRepository
+from app.models.user import User
 from app.schemas.itinerary import (
-    ItineraryDay,
-    ItineraryRequest,
-    ItineraryResponse,
-    ItineraryScheduleItem,
+    AiItineraryDay,
+    AiItineraryGenerateRequest,
+    AiItineraryItem,
+    AiItineraryResponse,
+    ItineraryCreate,
+    ItineraryItemCreate,
+    ItineraryItemUpdate,
+    ItineraryReorderItem,
+    ItineraryUpdate,
 )
 
 
-DEFAULT_PLACES = [
-    {"name": "Phong Nha Cave", "category": "cave"},
-    {"name": "Paradise Cave", "category": "cave"},
-    {"name": "Dark Cave", "category": "adventure"},
-    {"name": "Mooc Spring", "category": "nature"},
-    {"name": "Nhat Le Beach", "category": "beach"},
-    {"name": "Quang Phu Sand Dunes", "category": "landscape"},
-    {"name": "Dong Hoi Citadel", "category": "culture"},
-    {"name": "Vung Chua - Yen Island", "category": "culture"},
-]
-
-FOOD_BY_BUDGET = {
-    "budget": ["banh loc", "chao canh", "banh xeo Quang Hoa", "local seafood rice"],
-    "mid-range": ["river fish hotpot", "grilled squid", "seafood noodles", "Phong Nha farm lunch"],
-    "luxury": ["premium seafood dinner", "resort breakfast", "private cave picnic", "chef-led local tasting"],
-}
-
-STYLE_NOTES = {
-    "relaxed": "keeps mornings gentle and leaves room for cafes, swimming, and slow transfers",
-    "adventure": "prioritizes caves, forest trails, kayaking, and higher-energy stops",
-    "family": "balances short travel times, easy meals, and flexible rest windows",
-    "culture": "adds historical stops, markets, and local food experiences",
-}
-
-
 class ItineraryService:
-    def __init__(self, place_repository: PlaceRepository) -> None:
-        self.place_repository = place_repository
+    def __init__(self, db: Session) -> None:
+        self.db = db
 
-    def generate(self, request: ItineraryRequest) -> ItineraryResponse:
-        places = self._load_places()
-        selected_places = self._rank_places(
-            places=places,
-            interests=request.interests,
+    def list_user_itineraries(self, user: User) -> list[Itinerary]:
+        return list(self.db.scalars(select(Itinerary).where(Itinerary.user_id == user.id).options(selectinload(Itinerary.items).selectinload(ItineraryItem.place)).order_by(Itinerary.updated_at.desc())).all())
+
+    def create(self, user: User, payload: ItineraryCreate) -> Itinerary:
+        data = payload.model_dump(exclude={"items"})
+        itinerary = Itinerary(user_id=user.id, **data)
+        self.db.add(itinerary)
+        self.db.commit()
+        self.db.refresh(itinerary)
+        for item in payload.items:
+            self.add_item(user, itinerary.id, item)
+        return self.get_for_user_or_public(itinerary.id, user)
+
+    def get_for_user_or_public(self, itinerary_id: int, user: User | None = None) -> Itinerary:
+        itinerary = self.db.scalar(select(Itinerary).where(Itinerary.id == itinerary_id).options(selectinload(Itinerary.items).selectinload(ItineraryItem.place)))
+        if not itinerary:
+            raise HTTPException(status_code=404, detail="Itinerary not found.")
+        if itinerary.visibility == "private" and (not user or itinerary.user_id != user.id):
+            raise HTTPException(status_code=403, detail="You do not have permission to view this itinerary.")
+        return itinerary
+
+    def get_owned(self, itinerary_id: int, user: User) -> Itinerary:
+        itinerary = self.get_for_user_or_public(itinerary_id, user)
+        if itinerary.user_id != user.id:
+            raise HTTPException(status_code=403, detail="You can only edit your own itinerary.")
+        return itinerary
+
+    def update(self, user: User, itinerary_id: int, payload: ItineraryUpdate) -> Itinerary:
+        itinerary = self.get_owned(itinerary_id, user)
+        for key, value in payload.model_dump(exclude_unset=True).items():
+            setattr(itinerary, key, value)
+        self.db.add(itinerary)
+        self.db.commit()
+        return self.get_owned(itinerary_id, user)
+
+    def delete(self, user: User, itinerary_id: int) -> None:
+        itinerary = self.get_owned(itinerary_id, user)
+        self.db.delete(itinerary)
+        self.db.commit()
+
+    def add_item(self, user: User, itinerary_id: int, payload: ItineraryItemCreate) -> ItineraryItem:
+        self.get_owned(itinerary_id, user)
+        if payload.place_id and not self.db.get(Place, payload.place_id):
+            raise HTTPException(status_code=404, detail="Place not found.")
+        item = ItineraryItem(itinerary_id=itinerary_id, **payload.model_dump())
+        self.db.add(item)
+        self.db.commit()
+        self.db.refresh(item)
+        return item
+
+    def update_item(self, user: User, itinerary_id: int, item_id: int, payload: ItineraryItemUpdate) -> ItineraryItem:
+        self.get_owned(itinerary_id, user)
+        item = self.db.get(ItineraryItem, item_id)
+        if not item or item.itinerary_id != itinerary_id:
+            raise HTTPException(status_code=404, detail="Itinerary item not found.")
+        for key, value in payload.model_dump(exclude_unset=True).items():
+            setattr(item, key, value)
+        self.db.add(item)
+        self.db.commit()
+        self.db.refresh(item)
+        return item
+
+    def delete_item(self, user: User, itinerary_id: int, item_id: int) -> None:
+        self.get_owned(itinerary_id, user)
+        item = self.db.get(ItineraryItem, item_id)
+        if not item or item.itinerary_id != itinerary_id:
+            raise HTTPException(status_code=404, detail="Itinerary item not found.")
+        self.db.delete(item)
+        self.db.commit()
+
+    def reorder_items(self, user: User, itinerary_id: int, items: list[ItineraryReorderItem]) -> Itinerary:
+        self.get_owned(itinerary_id, user)
+        for payload in items:
+            item = self.db.get(ItineraryItem, payload.item_id)
+            if not item or item.itinerary_id != itinerary_id:
+                raise HTTPException(status_code=400, detail="Invalid itinerary item.")
+            item.day_number = payload.day_number
+            item.order_index = payload.order_index
+            item.start_time = payload.start_time
+            self.db.add(item)
+        self.db.commit()
+        return self.get_owned(itinerary_id, user)
+
+    def share(self, user: User, itinerary_id: int) -> Itinerary:
+        itinerary = self.get_owned(itinerary_id, user)
+        if not itinerary.share_slug:
+            itinerary.share_slug = uuid4().hex
+        itinerary.visibility = "shared"
+        self.db.add(itinerary)
+        self.db.commit()
+        return self.get_owned(itinerary_id, user)
+
+    def get_shared(self, share_slug: str) -> Itinerary:
+        itinerary = self.db.scalar(select(Itinerary).where(Itinerary.share_slug == share_slug).options(selectinload(Itinerary.items).selectinload(ItineraryItem.place)))
+        if not itinerary or itinerary.visibility not in {"shared", "public"}:
+            raise HTTPException(status_code=404, detail="Shared itinerary not found.")
+        return itinerary
+
+    def generate_ai(self, request: AiItineraryGenerateRequest) -> AiItineraryResponse:
+        places = list(self.db.scalars(select(Place).where(Place.status.in_(["active", "published"])).order_by(Place.rating_avg.desc()).limit(100)).all())
+        if request.interests:
+            interests = [item.lower() for item in request.interests]
+            ranked = [place for place in places if any(keyword in f"{place.name} {place.category} {' '.join(place.tags or [])}".lower() for keyword in interests)]
+            places = ranked or places
+        slots = [("08:00", "Ăn sáng và chuẩn bị di chuyển"), ("09:30", "Khám phá điểm chính"), ("12:00", "Ăn trưa địa phương"), ("14:00", "Tham quan/Check-in"), ("18:30", "Ăn tối và nghỉ ngơi")]
+        days = []
+        for day in range(1, request.days + 1):
+            items = []
+            for index, (time, fallback_title) in enumerate(slots):
+                place = places[((day - 1) * 2 + index) % len(places)] if places and index in {1, 3} else None
+                items.append(AiItineraryItem(
+                    time=time,
+                    title=place.name if place else fallback_title,
+                    place_id=place.id if place else None,
+                    place_name=place.name if place else None,
+                    note=f"Gợi ý phù hợp với phong cách {request.travel_style}, xuất phát từ {request.start_location}.",
+                    estimated_cost=(request.budget or 0) / max(request.days, 1) / len(slots) if request.budget else None,
+                    transport_note="Ưu tiên taxi/xe máy tùy nhóm; kiểm tra thời tiết trước khi đi.",
+                    duration_minutes=120 if place else 60,
+                ))
+            days.append(AiItineraryDay(day_number=day, summary=f"Ngày {day}: cân bằng trải nghiệm, ăn uống và nghỉ ngơi.", items=items))
+        return AiItineraryResponse(
+            title=f"Lịch trình Quảng Bình {request.days} ngày",
+            description="Lịch trình AI fallback dựa trên địa điểm, tags, rating và nhu cầu đã chọn.",
+            total_days=request.days,
+            estimated_budget=request.budget,
             travel_style=request.travel_style,
-        )
-        food_pool = self._food_for_budget(request.budget)
-
-        days = [
-            self._build_day(
-                day_number=day_number,
-                request=request,
-                places=selected_places,
-                food_pool=food_pool,
-            )
-            for day_number in range(1, request.days + 1)
-        ]
-
-        style_note = self._style_note(request.travel_style)
-        overview = (
-            f"A {request.days}-day Quang Binh itinerary that {style_note}, "
-            f"with food and pacing tuned for a {request.budget} budget."
-        )
-
-        return ItineraryResponse(
-            days=request.days,
-            travel_style=request.travel_style,
-            budget=request.budget,
             interests=request.interests,
-            overview=overview,
-            itinerary=days,
-            tips=[
-                "Book cave tours early during weekends and Vietnamese holidays.",
-                "Use Dong Hoi as the easiest base for beach, food, and airport access.",
-                "Start cave and spring days early to avoid midday heat.",
-                "Carry cash for small restaurants, boat rides, and rural stops.",
-            ],
+            days=days,
         )
-
-    def _load_places(self) -> list[dict[str, str]]:
-        db_places = self.place_repository.list(limit=100)
-        if not db_places:
-            return DEFAULT_PLACES
-
-        return [
-            {"name": place.name, "category": place.category}
-            for place in db_places
-        ]
-
-    def _rank_places(
-        self,
-        *,
-        places: Sequence[dict[str, str]],
-        interests: list[str],
-        travel_style: str,
-    ) -> list[dict[str, str]]:
-        keywords = {item.lower() for item in interests}
-        keywords.add(travel_style.lower())
-
-        def score(place: dict[str, str]) -> int:
-            text = f"{place['name']} {place['category']}".lower()
-            return sum(1 for keyword in keywords if keyword and keyword in text)
-
-        ranked = sorted(places, key=score, reverse=True)
-        return ranked or DEFAULT_PLACES
-
-    def _build_day(
-        self,
-        *,
-        day_number: int,
-        request: ItineraryRequest,
-        places: list[dict[str, str]],
-        food_pool: list[str],
-    ) -> ItineraryDay:
-        primary = places[(day_number - 1) % len(places)]
-        secondary = places[day_number % len(places)]
-        dinner_place = "Dong Hoi riverside" if day_number == request.days else "Phong Nha town"
-        breakfast = food_pool[(day_number - 1) % len(food_pool)]
-        lunch = food_pool[day_number % len(food_pool)]
-        dinner = food_pool[(day_number + 1) % len(food_pool)]
-
-        return ItineraryDay(
-            day=day_number,
-            theme=self._theme_for_day(day_number, primary, request.travel_style),
-            places=[primary["name"], secondary["name"], dinner_place],
-            food=[breakfast, lunch, dinner],
-            schedule=[
-                ItineraryScheduleItem(
-                    time="07:30",
-                    title="Breakfast and route check",
-                    description="Start with a local meal and confirm transport timing before the main activity.",
-                    food=breakfast,
-                ),
-                ItineraryScheduleItem(
-                    time="09:00",
-                    title=f"Explore {primary['name']}",
-                    description=self._activity_description(primary, request.travel_style),
-                    place=primary["name"],
-                ),
-                ItineraryScheduleItem(
-                    time="12:30",
-                    title="Lunch near the route",
-                    description="Keep lunch close to the next stop to reduce backtracking.",
-                    food=lunch,
-                ),
-                ItineraryScheduleItem(
-                    time="14:30",
-                    title=f"Visit {secondary['name']}",
-                    description="Use the afternoon for a second highlight or a slower scenic stop.",
-                    place=secondary["name"],
-                ),
-                ItineraryScheduleItem(
-                    time="18:30",
-                    title=f"Dinner around {dinner_place}",
-                    description="End the day with regional dishes and an easy walk nearby.",
-                    place=dinner_place,
-                    food=dinner,
-                ),
-            ],
-        )
-
-    def _food_for_budget(self, budget: str) -> list[str]:
-        normalized = budget.lower()
-        if "lux" in normalized or "high" in normalized:
-            return FOOD_BY_BUDGET["luxury"]
-        if "mid" in normalized or "medium" in normalized:
-            return FOOD_BY_BUDGET["mid-range"]
-        return FOOD_BY_BUDGET["budget"]
-
-    def _style_note(self, travel_style: str) -> str:
-        normalized = travel_style.lower()
-        for key, note in STYLE_NOTES.items():
-            if key in normalized:
-                return note
-        return "balances signature landscapes, local food, and practical travel time"
-
-    def _theme_for_day(self, day_number: int, place: dict[str, str], travel_style: str) -> str:
-        return f"Day {day_number}: {place['category'].title()} discovery for {travel_style} travelers"
-
-    def _activity_description(self, place: dict[str, str], travel_style: str) -> str:
-        if "adventure" in travel_style.lower():
-            return f"Plan an active visit at {place['name']} with time for guided activities and photo stops."
-        if "relaxed" in travel_style.lower():
-            return f"Take {place['name']} slowly, leaving extra time for coffee, shade, and unplanned views."
-        return f"Make {place['name']} the main stop of the day with enough time for context and photos."
