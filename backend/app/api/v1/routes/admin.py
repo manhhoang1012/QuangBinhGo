@@ -9,13 +9,13 @@ from app.api.dependencies import require_admin, require_moderator_or_admin
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.place import Category, Place
-from app.models.review_post import PlaceReview, PostComment, ReviewPost
+from app.models.review_post import PlaceReview, PostComment, PostReport, ReviewPost
 from app.models.user import User
 from app.repositories.place_repository import PlaceRepository
 from app.repositories.review_post_repository import ReviewPostRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.place import CategoryCreate, CategoryRead, CategoryUpdate, PlaceCreate, PlaceRead, PlaceUpdate
-from app.schemas.review_post import AdminCommentRead, AdminPlaceReviewRead, PostStatusUpdate, ReviewPostRead
+from app.schemas.review_post import AdminCommentRead, AdminPlaceReviewRead, AdminPostReportRead, PostReportRead, PostStatusUpdate, ReviewPostRead
 from app.schemas.site_settings import SettingsUploadResponse, SiteSettingsPayload
 from app.schemas.user import AdminUserRead, MessageResponse, UserRoleUpdate, UserStatusUpdate
 from app.services.place_service import PlaceService
@@ -255,6 +255,22 @@ def admin_delete_post(post_id: int, _: User = Depends(require_moderator_or_admin
     db.delete(post)
     db.commit()
     return MessageResponse(message="Post deleted successfully.")
+
+
+@router.get("/reports/posts", response_model=list[AdminPostReportRead])
+def admin_list_post_reports(
+    status_value: str | None = Query(default=None, alias="status"),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=100),
+    _: User = Depends(require_moderator_or_admin),
+    db: Session = Depends(get_db),
+):
+    return post_service(db).list_reports(status_value=status_value, skip=skip, limit=limit)
+
+
+@router.patch("/reports/{report_id}/resolve", response_model=PostReportRead)
+def admin_resolve_report(report_id: int, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
+    return post_service(db).resolve_report(report_id=report_id, status_value="resolved")
 
 
 @router.get("/comments", response_model=list[AdminCommentRead])

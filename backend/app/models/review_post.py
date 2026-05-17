@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, JSON, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -10,10 +10,16 @@ class ReviewPost(TimestampMixin, Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
-    place_id: Mapped[int] = mapped_column(ForeignKey("places.id", ondelete="CASCADE"), index=True, nullable=False)
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    place_id: Mapped[int | None] = mapped_column(ForeignKey("places.id", ondelete="SET NULL"), index=True, nullable=True)
+    title: Mapped[str] = mapped_column(String(255), default="", nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     images: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    videos: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    hashtags: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    tagged_users: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    visibility: Mapped[str] = mapped_column(String(30), default="public", nullable=False)
+    is_draft: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    share_count: Mapped[int] = mapped_column(default=0, nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="visible", nullable=False)
 
     author = relationship("User")
@@ -32,6 +38,15 @@ class PostLike(TimestampMixin, Base):
 class PostSave(TimestampMixin, Base):
     __tablename__ = "post_saves"
     __table_args__ = (UniqueConstraint("post_id", "user_id", name="uq_post_saves_post_user"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("review_posts.id", ondelete="CASCADE"), index=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+
+
+class PostHide(TimestampMixin, Base):
+    __tablename__ = "post_hides"
+    __table_args__ = (UniqueConstraint("post_id", "user_id", name="uq_post_hides_post_user"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     post_id: Mapped[int] = mapped_column(ForeignKey("review_posts.id", ondelete="CASCADE"), index=True, nullable=False)
@@ -68,9 +83,20 @@ class PostComment(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     post_id: Mapped[int] = mapped_column(ForeignKey("review_posts.id", ondelete="CASCADE"), index=True, nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    parent_comment_id: Mapped[int | None] = mapped_column(ForeignKey("post_comments.id", ondelete="CASCADE"), index=True, nullable=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
     author = relationship("User")
+    replies = relationship("PostComment")
+
+
+class CommentLike(TimestampMixin, Base):
+    __tablename__ = "comment_likes"
+    __table_args__ = (UniqueConstraint("comment_id", "user_id", name="uq_comment_likes_comment_user"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    comment_id: Mapped[int] = mapped_column(ForeignKey("post_comments.id", ondelete="CASCADE"), index=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
 
 
 class PlaceReview(TimestampMixin, Base):

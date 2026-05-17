@@ -254,8 +254,8 @@ function SocialLinks({ user }: { user: User | null }) {
 function ActivitySection({ posts, savedPosts, reviews }: { posts: ReviewPost[]; savedPosts: ReviewPost[]; reviews: Array<{ id: number; rating: number; content: string; place: { name: string } }> }) {
   return (
     <div className="mt-10 grid gap-6 lg:grid-cols-3">
-      <MiniList title="My posts" empty="No posts yet." items={posts.map((post) => ({ id: post.id, title: post.title, meta: post.place.name }))} />
-      <MiniList title="Saved posts" empty="No saved posts yet." items={savedPosts.map((post) => ({ id: post.id, title: post.title, meta: post.place.name }))} />
+      <MiniList title="My posts" empty="No posts yet." items={posts.map((post) => ({ id: post.id, title: post.title, meta: post.place?.name ?? "No place" }))} />
+      <MiniList title="Saved posts" empty="No saved posts yet." items={savedPosts.map((post) => ({ id: post.id, title: post.title, meta: post.place?.name ?? "No place" }))} />
       <MiniList title="Place reviews" empty="No place reviews yet." items={reviews.map((review) => ({ id: review.id, title: review.place.name, meta: `${review.rating}/5 - ${review.content}` }))} />
     </div>
   );

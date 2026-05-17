@@ -92,7 +92,7 @@ export function PublicProfilePage() {
       <h2 className="mt-8 text-2xl font-semibold">Bài đã đăng</h2>
       <div className="mt-4 grid gap-4">
         {posts.length === 0 && <Card><CardContent className="pt-5 text-sm text-muted-foreground">Người dùng này chưa đăng bài nào.</CardContent></Card>}
-        {posts.map((post) => <Card key={post.id}><CardContent className="pt-5"><p className="text-sm text-muted-foreground">{post.place.name}</p><h3 className="mt-2 font-semibold">{post.title}</h3><p className="mt-2 text-sm text-muted-foreground">{post.content}</p></CardContent></Card>)}
+        {posts.map((post) => <Card key={post.id}><CardContent className="pt-5"><p className="text-sm text-muted-foreground">{post.place?.name ?? "No place"}</p><h3 className="mt-2 font-semibold">{post.title}</h3><p className="mt-2 text-sm text-muted-foreground">{post.content}</p></CardContent></Card>)}
       </div>
     </section>
   );

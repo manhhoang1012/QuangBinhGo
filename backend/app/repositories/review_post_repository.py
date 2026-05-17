@@ -1,9 +1,9 @@
 from collections.abc import Sequence
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.review_post import PlaceReview, PostComment, PostLike, PostReport, PostSave, ReviewPost, UserFollow
+from app.models.review_post import CommentLike, PlaceReview, PostComment, PostHide, PostLike, PostReport, PostSave, ReviewPost, UserFollow
 from app.schemas.review_post import CommentCreate, ReviewPostCreate, ReviewPostUpdate
 
 
@@ -29,14 +29,40 @@ class ReviewPostRepository:
         )
         return self.db.scalar(statement)
 
-    def feed(self, *, sort: str = "latest", skip: int = 0, limit: int = 20) -> Sequence[tuple[ReviewPost, int, int, int]]:
-        return self.list_with_counts(sort=sort, skip=skip, limit=limit)
+    def feed(
+        self,
+        *,
+        sort: str = "latest",
+        current_user_id: int | None = None,
+        following_user_ids: list[int] | None = None,
+        viewer_following_ids: list[int] | None = None,
+        place_id: int | None = None,
+        hashtag: str | None = None,
+        skip: int = 0,
+        limit: int = 20,
+    ) -> Sequence[tuple[ReviewPost, int, int, int]]:
+        return self.list_with_counts(
+            sort=sort,
+            current_user_id=current_user_id,
+            following_user_ids=following_user_ids,
+            viewer_following_ids=viewer_following_ids,
+            place_id=place_id,
+            hashtag=hashtag,
+            skip=skip,
+            limit=limit,
+        )
 
     def list_with_counts(
         self,
         *,
         user_id: int | None = None,
         saved_by_user_id: int | None = None,
+        current_user_id: int | None = None,
+        following_user_ids: list[int] | None = None,
+        viewer_following_ids: list[int] | None = None,
+        place_id: int | None = None,
+        hashtag: str | None = None,
+        drafts_only: bool = False,
         include_hidden: bool = False,
         sort: str = "latest",
         skip: int = 0,
@@ -62,15 +88,40 @@ class ReviewPostRepository:
 
         if not include_hidden:
             statement = statement.where(ReviewPost.status == "visible")
+            if current_user_id is not None:
+                statement = statement.outerjoin(PostHide, (PostHide.post_id == ReviewPost.id) & (PostHide.user_id == current_user_id)).where(PostHide.id.is_(None))
+
+        if drafts_only:
+            statement = statement.where(ReviewPost.is_draft.is_(True))
+        else:
+            statement = statement.where(ReviewPost.is_draft.is_(False))
+
+        if current_user_id is not None:
+            follower_visible_ids = viewer_following_ids or []
+            statement = statement.where(
+                or_(
+                    ReviewPost.visibility == "public",
+                    ReviewPost.user_id == current_user_id,
+                    (ReviewPost.visibility == "followers") & (ReviewPost.user_id.in_(follower_visible_ids)),
+                )
+            )
+        else:
+            statement = statement.where(ReviewPost.visibility == "public")
 
         if user_id is not None:
             statement = statement.where(ReviewPost.user_id == user_id)
 
         if saved_by_user_id is not None:
             statement = statement.where(PostSave.user_id == saved_by_user_id)
+        if following_user_ids is not None:
+            statement = statement.where(ReviewPost.user_id.in_(following_user_ids))
+        if place_id is not None:
+            statement = statement.where(ReviewPost.place_id == place_id)
+        if hashtag is not None:
+            statement = statement.where(ReviewPost.hashtags.contains([hashtag]))
 
-        if sort == "popular":
-            statement = statement.order_by(likes_count.desc(), comments_count.desc(), ReviewPost.created_at.desc())
+        if sort in {"popular", "trending"}:
+            statement = statement.order_by((likes_count * 3 + comments_count * 4 + saves_count * 2 + ReviewPost.share_count).desc(), ReviewPost.created_at.desc())
         else:
             statement = statement.order_by(ReviewPost.created_at.desc())
 
@@ -152,8 +203,9 @@ class ReviewPostRepository:
         post_id: int,
         user_id: int,
         comment_create: CommentCreate,
+        parent_comment_id: int | None = None,
     ) -> PostComment:
-        comment = PostComment(post_id=post_id, user_id=user_id, content=comment_create.content)
+        comment = PostComment(post_id=post_id, user_id=user_id, content=comment_create.content, parent_comment_id=parent_comment_id)
         self.db.add(comment)
         self.db.commit()
         self.db.refresh(comment)
@@ -178,6 +230,23 @@ class ReviewPostRepository:
         )
         return self.db.scalars(statement).all()
 
+    def count_comment_likes(self, comment_id: int) -> int:
+        return self.db.scalar(select(func.count(CommentLike.id)).where(CommentLike.comment_id == comment_id)) or 0
+
+    def get_comment_like(self, *, comment_id: int, user_id: int) -> CommentLike | None:
+        return self.db.scalar(select(CommentLike).where(CommentLike.comment_id == comment_id, CommentLike.user_id == user_id))
+
+    def add_comment_like(self, *, comment_id: int, user_id: int) -> CommentLike:
+        like = CommentLike(comment_id=comment_id, user_id=user_id)
+        self.db.add(like)
+        self.db.commit()
+        self.db.refresh(like)
+        return like
+
+    def remove_comment_like(self, *, comment_id: int, user_id: int) -> None:
+        self.db.execute(delete(CommentLike).where(CommentLike.comment_id == comment_id, CommentLike.user_id == user_id))
+        self.db.commit()
+
     def update_comment(self, comment: PostComment, content: str) -> PostComment:
         comment.content = content
         self.db.add(comment)
@@ -198,6 +267,23 @@ class ReviewPostRepository:
     def count_comments(self, post_id: int) -> int:
         return self.db.scalar(select(func.count(PostComment.id)).where(PostComment.post_id == post_id)) or 0
 
+    def increment_share_count(self, post: ReviewPost) -> ReviewPost:
+        post.share_count = (post.share_count or 0) + 1
+        self.db.add(post)
+        self.db.commit()
+        self.db.refresh(post)
+        return post
+
+    def get_hidden(self, *, post_id: int, user_id: int) -> PostHide | None:
+        return self.db.scalar(select(PostHide).where(PostHide.post_id == post_id, PostHide.user_id == user_id))
+
+    def add_hide(self, *, post_id: int, user_id: int) -> PostHide:
+        hidden = PostHide(post_id=post_id, user_id=user_id)
+        self.db.add(hidden)
+        self.db.commit()
+        self.db.refresh(hidden)
+        return hidden
+
     def get_follow(self, *, follower_id: int, following_id: int) -> UserFollow | None:
         return self.db.scalar(select(UserFollow).where(UserFollow.follower_id == follower_id, UserFollow.following_id == following_id))
 
@@ -217,6 +303,32 @@ class ReviewPostRepository:
         if existing:
             return existing
         report = PostReport(post_id=post_id, user_id=user_id, reason=reason, description=description)
+        self.db.add(report)
+        self.db.commit()
+        self.db.refresh(report)
+        return report
+
+    def list_following_ids(self, *, follower_id: int) -> list[int]:
+        statement = select(UserFollow.following_id).where(UserFollow.follower_id == follower_id)
+        return list(self.db.scalars(statement).all())
+
+    def list_reports(self, *, status: str | None = None, skip: int = 0, limit: int = 50) -> Sequence[PostReport]:
+        statement = (
+            select(PostReport)
+            .options(selectinload(PostReport.reporter), selectinload(PostReport.post).selectinload(ReviewPost.author), selectinload(PostReport.post).selectinload(ReviewPost.place))
+            .order_by(PostReport.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        if status:
+            statement = statement.where(PostReport.status == status)
+        return self.db.scalars(statement).all()
+
+    def resolve_report(self, *, report_id: int, status_value: str = "resolved") -> PostReport | None:
+        report = self.db.get(PostReport, report_id)
+        if not report:
+            return None
+        report.status = status_value
         self.db.add(report)
         self.db.commit()
         self.db.refresh(report)

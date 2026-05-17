@@ -79,7 +79,7 @@ export function AdminDashboardPage() {
                 {posts.slice(0, 5).map((post) => (
                   <div className="border-b pb-3 last:border-b-0 last:pb-0" key={post.id}>
                     <p className="font-medium">{post.title}</p>
-                    <p className="text-sm text-muted-foreground">{post.author.full_name} - {post.place.name} - {post.likes_count} likes - {post.comments_count} comments</p>
+                    <p className="text-sm text-muted-foreground">{post.author.full_name} - {post.place?.name ?? "No place"} - {post.likes_count} likes - {post.comments_count} comments</p>
                   </div>
                 ))}
               </CardContent>

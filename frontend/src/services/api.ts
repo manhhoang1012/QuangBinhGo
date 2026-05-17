@@ -90,14 +90,20 @@ export interface ReviewPost {
   id: number;
   title: string;
   content: string;
-  place_id: number;
+  place_id?: number | null;
   images: string[];
+  videos: string[];
+  hashtags: string[];
+  tagged_users: string[];
+  visibility: "public" | "followers" | "private";
+  is_draft: boolean;
   status?: string;
   author: User;
-  place: Place;
+  place?: Place | null;
   likes_count: number;
   comments_count: number;
   saves_count: number;
+  share_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -106,6 +112,9 @@ export interface Comment {
   id: number;
   content: string;
   author: User;
+  parent_comment_id?: number | null;
+  likes_count: number;
+  replies: Comment[];
   created_at: string;
 }
 

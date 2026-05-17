@@ -41,7 +41,7 @@ export function AiSearchPage() {
         {results.map((result) => (
           <Card key={result.post.id}>
             <CardContent className="pt-5">
-              <p className="text-sm text-muted-foreground">Score {result.score.toFixed(3)} - {result.post.place.name}</p>
+              <p className="text-sm text-muted-foreground">Score {result.score.toFixed(3)} - {result.post.place?.name ?? "No place"}</p>
               <h2 className="mt-2 text-xl font-semibold">{result.post.title}</h2>
               <p className="mt-2 text-sm text-muted-foreground">{result.post.content}</p>
             </CardContent>

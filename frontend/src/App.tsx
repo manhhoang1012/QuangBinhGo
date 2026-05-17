@@ -28,6 +28,7 @@ import { ProfilePage } from "@/pages/ProfilePage";
 import { PublicProfilePage } from "@/pages/PublicProfilePage";
 import { ResetPasswordPage } from "@/pages/ResetPasswordPage";
 import { SavedPostsPage } from "@/pages/SavedPostsPage";
+import { SocialFilteredFeedPage } from "@/pages/SocialFilteredFeedPage";
 import { VerifyEmailPage } from "@/pages/VerifyEmailPage";
 
 const router = createBrowserRouter([
@@ -58,6 +59,18 @@ const router = createBrowserRouter([
       {
         path: "community/:postId",
         element: <PostDetailPage />,
+      },
+      {
+        path: "community/hashtag/:tag",
+        element: <SocialFilteredFeedPage mode="hashtag" />,
+      },
+      {
+        path: "community/place/:placeId",
+        element: <SocialFilteredFeedPage mode="place" />,
+      },
+      {
+        path: "community/saved",
+        element: <SavedPostsPage />,
       },
       {
         path: "profile",

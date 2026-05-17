@@ -1,9 +1,9 @@
 from app.db.base import Base
 from app.db.session import engine
-from app.models import AuthToken, Category, Place, PlaceReview, PostComment, PostLike, PostReport, PostSave, ReviewPost, SiteSettings, User, UserFollow
+from app.models import AuthToken, Category, CommentLike, Place, PlaceReview, PostComment, PostHide, PostLike, PostReport, PostSave, ReviewPost, SiteSettings, User, UserFollow
 from sqlalchemy import inspect, text
 
-__all__ = ["AuthToken", "Category", "Place", "PlaceReview", "PostComment", "PostLike", "PostReport", "PostSave", "ReviewPost", "SiteSettings", "User", "UserFollow"]
+__all__ = ["AuthToken", "Category", "CommentLike", "Place", "PlaceReview", "PostComment", "PostHide", "PostLike", "PostReport", "PostSave", "ReviewPost", "SiteSettings", "User", "UserFollow"]
 
 
 def init_db() -> None:
@@ -64,7 +64,16 @@ def ensure_admin_content_columns() -> None:
             "facebook_url": "VARCHAR(500)",
             "review_count": "INTEGER DEFAULT 0 NOT NULL",
         },
-        "review_posts": {"status": "VARCHAR(30) DEFAULT 'visible' NOT NULL"},
+        "review_posts": {
+            "status": "VARCHAR(30) DEFAULT 'visible' NOT NULL",
+            "videos": "JSON DEFAULT '[]' NOT NULL",
+            "hashtags": "JSON DEFAULT '[]' NOT NULL",
+            "tagged_users": "JSON DEFAULT '[]' NOT NULL",
+            "visibility": "VARCHAR(30) DEFAULT 'public' NOT NULL",
+            "is_draft": "BOOLEAN DEFAULT FALSE NOT NULL",
+            "share_count": "INTEGER DEFAULT 0 NOT NULL",
+        },
+        "post_comments": {"parent_comment_id": "INTEGER"},
     }
 
     with engine.begin() as connection:
@@ -79,3 +88,10 @@ def ensure_admin_content_columns() -> None:
             connection.execute(text("UPDATE places SET tags = '[]' WHERE tags IS NULL"))
             connection.execute(text("UPDATE places SET videos = '[]' WHERE videos IS NULL"))
             connection.execute(text("UPDATE places SET review_count = 0 WHERE review_count IS NULL"))
+        if "review_posts" in tables:
+            connection.execute(text("UPDATE review_posts SET videos = '[]' WHERE videos IS NULL"))
+            connection.execute(text("UPDATE review_posts SET hashtags = '[]' WHERE hashtags IS NULL"))
+            connection.execute(text("UPDATE review_posts SET tagged_users = '[]' WHERE tagged_users IS NULL"))
+            connection.execute(text("UPDATE review_posts SET visibility = 'public' WHERE visibility IS NULL"))
+            connection.execute(text("UPDATE review_posts SET is_draft = FALSE WHERE is_draft IS NULL"))
+            connection.execute(text("UPDATE review_posts SET share_count = 0 WHERE share_count IS NULL"))

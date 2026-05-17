@@ -80,10 +80,10 @@ export function AdminPostsPage() {
         {filteredPosts.map((post) => (
           <Card key={post.id}>
             <CardContent className="grid gap-4 pt-5 lg:grid-cols-[96px_1fr_160px] lg:items-center">
-              <img alt={post.title} className="h-24 w-24 rounded-md object-cover" src={post.images[0] ?? post.place.images[0] ?? "https://placehold.co/400x400?text=QuangBinhGo"} />
+              <img alt={post.title} className="h-24 w-24 rounded-md object-cover" src={post.images[0] ?? post.place?.images?.[0] ?? "https://placehold.co/400x400?text=QuangBinhGo"} />
               <div>
                 <p className="font-medium">{post.title}</p>
-                <p className="text-sm text-muted-foreground">{post.author.full_name} - {post.place.name} - {post.likes_count} likes - {post.comments_count} comments</p>
+                <p className="text-sm text-muted-foreground">{post.author.full_name} - {post.place?.name ?? "No place"} - {post.likes_count} likes - {post.comments_count} comments</p>
                 <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{post.content}</p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -102,7 +102,7 @@ export function AdminPostsPage() {
             <CardContent className="pt-5">
               <div className="flex justify-between gap-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">{selectedPost.author.full_name} - {selectedPost.place.name}</p>
+                  <p className="text-sm text-muted-foreground">{selectedPost.author.full_name} - {selectedPost.place?.name ?? "No place"}</p>
                   <h2 className="mt-2 text-2xl font-semibold">{selectedPost.title}</h2>
                 </div>
                 <Button onClick={() => setSelectedPost(null)} variant="outline">Close</Button>
