@@ -43,6 +43,28 @@ def get_review_stats(db: Session, place_ids: list[int]) -> dict[int, tuple[float
     return {place_id: (float(avg_rating or 0), int(review_count or 0)) for place_id, avg_rating, review_count in rows}
 
 
+def normalize_tag(value: object) -> str:
+    return str(value).strip().lower()
+
+
+def parse_requested_tags(tags: str | None) -> set[str]:
+    if not tags:
+        return set()
+    return {normalize_tag(tag) for tag in tags.split(",") if normalize_tag(tag)}
+
+
+def normalize_place_tags(tags: object) -> set[str]:
+    if tags is None:
+        return set()
+    if isinstance(tags, str):
+        values = tags.split(",")
+    elif isinstance(tags, list):
+        values = tags
+    else:
+        return set()
+    return {normalize_tag(tag) for tag in values if normalize_tag(tag)}
+
+
 def build_place_read(
     place: Place,
     distance_km: float | None = None,
@@ -108,9 +130,9 @@ def list_places(
         statement = statement.where(or_(Place.price_min > 0, Place.ticket_price.is_not(None)))
 
     places = list(db.scalars(statement).all())
-    wanted_tags = [tag.strip().lower() for tag in (tags or "").split(",") if tag.strip()]
+    wanted_tags = parse_requested_tags(tags)
     if wanted_tags:
-        places = [place for place in places if wanted_tags.intersection({tag.lower() for tag in (place.tags or [])})]
+        places = [place for place in places if normalize_place_tags(place.tags).intersection(wanted_tags)]
 
     distances: dict[int, float] = {}
     if near_lat is not None and near_lng is not None:
@@ -140,7 +162,7 @@ def list_places(
     elif sort == "distance_asc" and distances:
         places.sort(key=lambda place: distances[place.id])
     else:
-        places.sort(key=lambda place: place.created_at, reverse=True)
+        places.sort(key=lambda place: place.created_at or place.updated_at, reverse=True)
 
     start = (page - 1) * limit
     return [build_place_read(place, distances.get(place.id), review_stats) for place in places[start : start + limit]]

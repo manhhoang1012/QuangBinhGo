@@ -65,7 +65,7 @@ export function PlacesListPage() {
         });
         setPlaces(data);
       } catch {
-        setError("Could not load places. Check that the FastAPI backend is running.");
+        setError("Không thể tải danh sách địa điểm. Vui lòng thử lại.");
       } finally {
         setIsLoading(false);
       }
