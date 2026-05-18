@@ -8,6 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Breadcrumb } from "@/components/common/Breadcrumb";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { EmptyState } from "@/components/common/EmptyState";
+import { ErrorState } from "@/components/common/ErrorState";
+import { PostSkeleton } from "@/components/common/LoadingSkeleton";
+import { showToast } from "@/components/common/toastStore";
 import { type Comment, type ReviewPost, type User } from "@/services/api";
 import { createComment, deleteComment, getComments, likeComment, reportComment, replyComment, unlikeComment, updateComment } from "@/services/commentApi";
 import { deleteReviewPost, getHashtagFeed, getReviewPost, likePost, reportPost, savePost, sharePost } from "@/services/postApi";
@@ -25,6 +31,7 @@ export function PostDetailPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const loadPost = useCallback(async () => {
     setIsLoading(true);
@@ -61,27 +68,32 @@ export function PostDetailPage() {
       setComments(await getComments(numericPostId));
       setPost(await getReviewPost(numericPostId));
       setNotice("Da gui binh luan.");
+      showToast("Đã gửi bình luận.", "success");
     } catch {
       setError("Bình luận có dấu hiệu spam. Vui lòng chỉnh sửa nội dung.");
     }
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("Xoa bai viet nay?")) return;
     try {
       await deleteReviewPost(numericPostId);
+      showToast("Đã xóa bài viết.", "success");
       navigate("/community");
     } catch {
       setError("Ban khong co quyen xoa bai viet nay.");
+      showToast("Không thể xóa bài viết.", "error");
+    } finally {
+      setConfirmDeleteOpen(false);
     }
   };
 
-  if (isLoading) return <div className="mx-auto max-w-4xl px-4 py-10 text-muted-foreground">Dang tai bai viet...</div>;
-  if (error || !post) return <div className="mx-auto max-w-4xl px-4 py-10 text-destructive">{error ?? "Khong tim thay bai viet."}</div>;
+  if (isLoading) return <div className="mx-auto max-w-4xl px-4 py-10"><PostSkeleton /></div>;
+  if (error || !post) return <div className="mx-auto max-w-4xl px-4 py-10"><ErrorState message={error ?? "Không tìm thấy bài viết."} onRetry={() => void loadPost()} /></div>;
   const canDelete = currentUser?.id === post.author.id || currentUser?.role === "admin";
 
   return (
     <section className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mb-4"><Breadcrumb items={[{ label: "Trang chủ", to: "/" }, { label: "Cộng đồng", to: "/community" }, { label: post.title || "Bài viết" }]} /></div>
       <Card className="overflow-hidden">
         {post.images[0] && <img alt={post.title || "Community post"} className="max-h-[520px] w-full object-cover" src={post.images[0]} />}
         {post.videos[0] && <video className="max-h-[520px] w-full bg-black" controls preload="metadata" src={post.videos[0]} />}
@@ -114,7 +126,7 @@ export function PostDetailPage() {
             <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => void savePost(post.id).then(loadPost)}><Bookmark className="h-4 w-4" />{post.saves_count}</Button>
             <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => void sharePost(post.id).then(loadPost)}><Share2 className="h-4 w-4" />{post.share_count}</Button>
             <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => { const reason = window.prompt("Ly do bao cao?"); if (reason) void reportPost(post.id, reason); }}><Flag className="h-4 w-4" />Report</Button>
-            {canDelete && <Button variant="ghost" className="h-8 gap-1.5 px-3 text-destructive" onClick={() => void handleDelete()}><Trash2 className="h-4 w-4" />Delete</Button>}
+            {canDelete && <Button variant="ghost" className="h-8 gap-1.5 px-3 text-destructive" onClick={() => setConfirmDeleteOpen(true)}><Trash2 className="h-4 w-4" />Delete</Button>}
           </div>
         </CardContent>
       </Card>
@@ -126,7 +138,7 @@ export function PostDetailPage() {
           <Input onChange={(event) => setCommentText(event.target.value)} placeholder="Viet binh luan" value={commentText} />
           <Button onClick={() => void handleComment().catch(() => setError("Vui long dang nhap truoc khi binh luan."))}>Gui</Button>
         </div>
-        {comments.length === 0 && <p className="text-sm text-muted-foreground">Chua co binh luan.</p>}
+        {comments.length === 0 && <EmptyState title="Chưa có bình luận" description="Hãy bắt đầu cuộc trò chuyện về bài viết này." />}
         {comments.map((comment) => (
           <CommentThread
             comment={comment}
@@ -137,11 +149,13 @@ export function PostDetailPage() {
               setComments(await getComments(numericPostId));
               setPost(await getReviewPost(numericPostId));
               setNotice("Da xoa binh luan.");
+              showToast("Đã xóa bình luận.", "success");
             }}
             onEdit={async (commentId, content) => {
               await updateComment(numericPostId, commentId, content);
               setComments(await getComments(numericPostId));
               setNotice("Da cap nhat binh luan.");
+              showToast("Đã cập nhật bình luận.", "success");
             }}
             onLike={async (item) => {
               if (item.liked_by_me) {
@@ -182,6 +196,13 @@ export function PostDetailPage() {
           </div>
         </section>
       )}
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title="Xóa bài viết?"
+        description="Bài viết sẽ bị xóa khỏi cộng đồng."
+        onCancel={() => setConfirmDeleteOpen(false)}
+        onConfirm={() => void handleDelete()}
+      />
     </section>
   );
 }

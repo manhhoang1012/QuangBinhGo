@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { LocateFixed, MapPin, Search, Star } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/common/EmptyState";
+import { ErrorState } from "@/components/common/ErrorState";
+import { LoadingSkeleton } from "@/components/common/LoadingSkeleton";
+import { Pagination } from "@/components/common/Pagination";
 import { type Place } from "@/services/api";
 import { getPlaces } from "@/services/placeApi";
 
@@ -23,6 +27,7 @@ const imageFallback = "https://placehold.co/1200x800?text=QuangBinhGo";
 const pageSize = 9;
 
 export function PlacesListPage() {
+  const [searchParams] = useSearchParams();
   const [places, setPlaces] = useState<Place[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedTag, setSelectedTag] = useState("");
@@ -33,9 +38,15 @@ export function PlacesListPage() {
   const [sort, setSort] = useState("newest");
   const [page, setPage] = useState(1);
   const [nearMe, setNearMe] = useState<{ lat: number; lng: number } | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [isLocating, setIsLocating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const initialQuery = searchParams.get("q");
+    if (initialQuery) setSearch(initialQuery);
+  }, [searchParams]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -72,7 +83,7 @@ export function PlacesListPage() {
     };
 
     void loadPlaces();
-  }, [debouncedSearch, selectedCategory, selectedTag, minRating, priceType, sort, nearMe, page]);
+  }, [debouncedSearch, selectedCategory, selectedTag, minRating, priceType, sort, nearMe, page, reloadKey]);
 
   const activateNearMe = () => {
     setError(null);
@@ -152,19 +163,16 @@ export function PlacesListPage() {
         </div>
       </div>
 
-      {isLoading && <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 6 }).map((_, index) => <Card className="h-96 animate-pulse bg-muted/50" key={index} />)}</div>}
-      {error && <div className="mt-8 rounded-lg border border-destructive/30 bg-destructive/10 p-5 text-sm text-destructive">{error}</div>}
-      {!isLoading && !error && places.length === 0 && <div className="mt-8 rounded-lg border bg-muted/40 p-8 text-center text-muted-foreground">Không tìm thấy địa điểm phù hợp.</div>}
+      {isLoading && <div className="mt-8"><LoadingSkeleton count={6} className="h-96" grid /></div>}
+      {error && <div className="mt-8"><ErrorState message={error} onRetry={() => setReloadKey((value) => value + 1)} /></div>}
+      {!isLoading && !error && places.length === 0 && <div className="mt-8"><EmptyState title="Chưa có địa điểm phù hợp" description="Thử đổi từ khóa, danh mục hoặc xóa bộ lọc hiện tại." actionLabel="Xóa bộ lọc" onAction={() => { setSelectedCategory(""); setSelectedTag(""); setMinRating(""); setPriceType(""); setSearch(""); setNearMe(null); setPage(1); }} /></div>}
 
       {!isLoading && !error && places.length > 0 && (
         <>
           <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {places.map((place) => <PlaceCard key={place.id} place={place} />)}
           </div>
-          <div className="mt-8 flex justify-center gap-2">
-            <Button disabled={page === 1} onClick={() => setPage((value) => Math.max(1, value - 1))} variant="outline">Trước</Button>
-            <Button disabled={places.length < pageSize} onClick={() => setPage((value) => value + 1)} variant="outline">Tiếp</Button>
-          </div>
+          <div className="mt-8"><Pagination page={page} totalPages={places.length < pageSize ? page : undefined} onPageChange={setPage} /></div>
         </>
       )}
     </section>

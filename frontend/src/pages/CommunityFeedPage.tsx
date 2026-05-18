@@ -6,7 +6,11 @@ import { PostCard } from "@/components/community/PostCard";
 import { SuggestedUsers } from "@/components/social/SuggestedUsers";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/common/EmptyState";
+import { ErrorState } from "@/components/common/ErrorState";
+import { InfiniteScrollLoader } from "@/components/common/InfiniteScrollLoader";
+import { PostSkeleton } from "@/components/common/LoadingSkeleton";
+import { showToast } from "@/components/common/toastStore";
 import { type ReviewPost } from "@/services/api";
 import { getCommunityFeed, hidePost, likePost, reportPost, savePost, sharePost, type FeedType } from "@/services/postApi";
 
@@ -73,6 +77,7 @@ export function CommunityFeedPage({ initialFeedType = "latest" }: { initialFeedT
     if (!reason?.trim()) return;
     await reportPost(post.id, reason.trim());
     setNotice("Da gui bao cao. Cam on ban da giup cong dong an toan hon.");
+    showToast("Đã gửi báo cáo.", "success");
   };
 
   return (
@@ -95,20 +100,20 @@ export function CommunityFeedPage({ initialFeedType = "latest" }: { initialFeedT
       </div>
 
       {notice && <div className="mt-8 rounded-lg border bg-accent/10 p-5 text-sm text-accent">{notice}</div>}
-      {error && <div className="mt-8 rounded-lg border border-destructive/30 bg-destructive/10 p-5 text-sm text-destructive">{error}</div>}
-      {isLoading && <Card className="mt-8 h-96 animate-pulse bg-muted/50" />}
-      {!isLoading && !error && posts.length === 0 && <div className="mt-8 rounded-lg border bg-muted/40 p-8 text-center text-muted-foreground">No posts in this feed yet.</div>}
+      {error && <div className="mt-8"><ErrorState message={error} onRetry={() => void loadFeed(true)} /></div>}
+      {isLoading && <div className="mt-8"><PostSkeleton /></div>}
+      {!isLoading && !error && posts.length === 0 && <div className="mt-8"><EmptyState title="Chưa có bài viết" description="Theo dõi thêm người dùng hoặc tạo bài review đầu tiên của bạn." actionLabel="Tạo bài viết" onAction={() => navigate("/community/new")} /></div>}
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_300px]">
         <div className="grid gap-5">
           {posts.map((post) => (
             <PostCard
               key={post.id}
               post={post}
-              onHide={(item) => void hidePost(item.id).then(() => setPosts((current) => current.filter((post) => post.id !== item.id))).catch(() => setError("Please sign in before hiding posts."))}
+              onHide={(item) => void hidePost(item.id).then(() => { setPosts((current) => current.filter((post) => post.id !== item.id)); showToast("Đã ẩn bài viết.", "success"); }).catch(() => setError("Please sign in before hiding posts."))}
               onLike={(item) => void likePost(item.id).then(refreshCounts).catch(() => setError("Please sign in before liking posts."))}
               onReport={(item) => void report(item).catch(() => setError("Could not report this post."))}
-              onSave={(item) => void savePost(item.id).then(refreshCounts).catch(() => setError("Please sign in before saving posts."))}
-              onShare={(item) => void sharePost(item.id).then(refreshCounts).catch(() => setError("Could not share this post."))}
+              onSave={(item) => void savePost(item.id).then(() => { showToast("Đã lưu bài viết.", "success"); return refreshCounts(); }).catch(() => setError("Please sign in before saving posts."))}
+              onShare={(item) => void sharePost(item.id).then(() => { showToast("Đã sao chép/chia sẻ liên kết.", "success"); return refreshCounts(); }).catch(() => setError("Could not share this post."))}
             />
           ))}
         </div>
@@ -117,8 +122,7 @@ export function CommunityFeedPage({ initialFeedType = "latest" }: { initialFeedT
         </aside>
       </div>
       <div ref={sentinelRef} className="h-10" />
-      {isLoadingMore && <Card className="mt-4 h-32 animate-pulse bg-muted/50" />}
-      {!hasMore && posts.length > 0 && <p className="mt-6 text-center text-sm text-muted-foreground">No more posts.</p>}
+      <InfiniteScrollLoader isLoading={isLoadingMore} hasMore={hasMore || posts.length === 0} />
     </section>
   );
 }

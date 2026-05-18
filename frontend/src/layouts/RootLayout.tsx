@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { type ReactNode } from "react";
-import { Compass, Facebook, LogOut, Menu, Search, Sparkles, UserRound, Youtube } from "lucide-react";
+import { Compass, Facebook, LogOut, Menu, Sparkles, UserRound, Youtube, X } from "lucide-react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { QuickSearch } from "@/components/common/QuickSearch";
+import { ThemeToggle } from "@/components/common/ThemeToggle";
+import { ToastViewport } from "@/components/common/Toast";
 import { Button } from "@/components/ui/button";
 import { type User } from "@/services/api";
 import { getStoredUser, logout } from "@/services/authApi";
@@ -11,10 +14,11 @@ import { fallbackSettings, getPublicSettings, type SiteSettings } from "@/servic
 import { getCurrentProfile } from "@/services/userApi";
 
 const navItems = [
-  { label: "Home", to: "/" },
-  { label: "Places", to: "/places" },
-  { label: "Community", to: "/community" },
-  { label: "Saved", to: "/saved" },
+  { label: "Trang chủ", to: "/" },
+  { label: "Khám phá", to: "/places" },
+  { label: "Cộng đồng", to: "/community" },
+  { label: "Bản đồ", to: "/map" },
+  { label: "Lịch trình", to: "/itineraries" },
   { label: "AI Du lịch", to: "/ai" },
 ];
 
@@ -105,10 +109,8 @@ export function RootLayout() {
             ))}
           </nav>
           <div className="flex items-center gap-2">
-            <Button className="hidden gap-2 sm:inline-flex" variant="outline">
-              <Search className="h-4 w-4" />
-              Search
-            </Button>
+            <div className="hidden lg:block"><QuickSearch /></div>
+            <ThemeToggle />
             {!user && (
               <Link to="/login">
                 <Button>Sign in</Button>
@@ -163,20 +165,25 @@ export function RootLayout() {
               </div>
             )}
             <Button className="md:hidden" onClick={() => setIsMobileMenuOpen((value) => !value)} variant="ghost">
-              <Menu className="h-5 w-5" />
+              {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
           </div>
         </div>
         {isMobileMenuOpen && (
           <div className="border-t bg-background px-4 py-3 md:hidden">
+            <div className="mb-3"><QuickSearch onNavigate={() => setIsMobileMenuOpen(false)} /></div>
             {[...navItems, ...aiMenuItems].map((item) => (
               <Link className="block rounded-md px-3 py-2 text-sm hover:bg-muted" key={`${item.to}-${item.label}`} onClick={() => setIsMobileMenuOpen(false)} to={item.to}>
                 {item.label}
               </Link>
             ))}
+            <Link className="block rounded-md px-3 py-2 text-sm hover:bg-muted" onClick={() => setIsMobileMenuOpen(false)} to={user ? "/profile" : "/login"}>
+              {user ? "Profile" : "Đăng nhập"}
+            </Link>
           </div>
         )}
       </header>
+      <ToastViewport />
       <main>
         <Outlet />
       </main>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,7 +20,7 @@ export function AdminReportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const loadReports = async () => {
+  const loadReports = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -31,11 +31,11 @@ export function AdminReportsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [status, type]);
 
   useEffect(() => {
     void loadReports();
-  }, [type, status]);
+  }, [loadReports]);
 
   const updateStatus = async (report: AdminReport, nextStatus: "resolved" | "rejected") => {
     if (report.type === "user") {

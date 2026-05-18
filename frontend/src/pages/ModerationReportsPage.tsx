@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +16,7 @@ export function ModerationReportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -27,9 +27,9 @@ export function ModerationReportsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [status, type]);
 
-  useEffect(() => { void load(); }, [type, status]);
+  useEffect(() => { void load(); }, [load]);
 
   const resolve = async (report: ModerationReport) => {
     try {

@@ -7,6 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlaceImageGallery } from "@/components/places/PlaceImageGallery";
 import { PlaceLocationMap } from "@/components/places/PlaceLocationMap";
+import { Breadcrumb } from "@/components/common/Breadcrumb";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { EmptyState } from "@/components/common/EmptyState";
+import { ErrorState } from "@/components/common/ErrorState";
+import { LoadingSkeleton } from "@/components/common/LoadingSkeleton";
+import { showToast } from "@/components/common/toastStore";
 import { type Place, type PlaceReview, type ReviewPost, type User } from "@/services/api";
 import { createPlaceReview, deletePlaceReview, getFeaturedPlaceReviews, getPlace, getPlaceReviews, markReviewHelpful, reportPlaceReview, unmarkReviewHelpful, updatePlaceReview, uploadPlaceReviewImages, type PlaceReviewList } from "@/services/placeApi";
 import { getCommunityFeed } from "@/services/postApi";
@@ -29,6 +35,7 @@ export function PlaceDetailPage() {
   const [reviewNotice, setReviewNotice] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteReviewTarget, setDeleteReviewTarget] = useState<PlaceReview | null>(null);
 
   useEffect(() => {
     const loadPlace = async () => {
@@ -64,12 +71,10 @@ export function PlaceDetailPage() {
     void loadPlace();
   }, [placeId]);
 
-  if (isLoading) {
-    return <div className="mx-auto max-w-7xl px-4 py-10 text-muted-foreground">Đang tải địa điểm...</div>;
-  }
+  if (isLoading) return <div className="mx-auto max-w-7xl px-4 py-10"><LoadingSkeleton count={3} className="h-64" /></div>;
 
   if (error || !place) {
-    return <div className="mx-auto max-w-7xl px-4 py-10 text-destructive">{error ?? "Không tìm thấy địa điểm."}</div>;
+    return <div className="mx-auto max-w-7xl px-4 py-10"><ErrorState message={error ?? "Không tìm thấy địa điểm."} onRetry={() => window.location.reload()} /></div>;
   }
 
   const ownReview = currentUser ? reviews.find((review) => review.author.id === currentUser.id) : null;
@@ -97,27 +102,33 @@ export function PlaceDetailPage() {
       if (ownReview) {
         await updatePlaceReview(place.id, ownReview.id, { rating: reviewRating, content: reviewContent.trim(), images });
         setReviewNotice("Đã cập nhật đánh giá.");
+        showToast("Đã cập nhật đánh giá.", "success");
       } else {
         await createPlaceReview(place.id, { rating: reviewRating, content: reviewContent.trim(), images });
         setReviewNotice("Đã gửi đánh giá.");
+        showToast("Đã gửi đánh giá.", "success");
       }
       setReviewFiles([]);
       await reloadReviews();
     } catch {
       setReviewNotice("Không thể lưu đánh giá. Mỗi tài khoản chỉ đánh giá một lần cho mỗi địa điểm.");
+      showToast("Không thể lưu đánh giá.", "error");
     }
   };
 
   const removeReview = async (review: PlaceReview) => {
-    if (!window.confirm("Xóa đánh giá này?")) return;
     try {
       await deletePlaceReview(place.id, review.id);
       setReviewContent("");
       setReviewRating(5);
       setReviewNotice("Đã xóa đánh giá.");
+      showToast("Đã xóa đánh giá.", "success");
       await reloadReviews();
     } catch {
       setReviewNotice("Bạn chỉ có thể xóa đánh giá của chính mình.");
+      showToast("Không thể xóa đánh giá.", "error");
+    } finally {
+      setDeleteReviewTarget(null);
     }
   };
 
@@ -146,6 +157,7 @@ export function PlaceDetailPage() {
     <section>
       <div className="border-b bg-muted/30">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <Breadcrumb items={[{ label: "Trang chủ", to: "/" }, { label: "Khám phá", to: "/places" }, { label: place.name }]} />
           <Badge>{place.category}</Badge>
           <h1 className="mt-4 max-w-3xl text-4xl font-semibold sm:text-5xl">{place.name}</h1>
           <p className="mt-4 flex items-center gap-2 text-muted-foreground">
@@ -235,11 +247,7 @@ export function PlaceDetailPage() {
 
           <h2 className="mt-10 text-2xl font-semibold">Bài viết trải nghiệm</h2>
           <div className="mt-4 grid gap-4">
-            {relatedPosts.length === 0 && (
-              <Card>
-                <CardContent className="pt-5 text-sm text-muted-foreground">Chưa có bài viết trải nghiệm cho địa điểm này.</CardContent>
-              </Card>
-            )}
+            {relatedPosts.length === 0 && <EmptyState title="Chưa có bài viết trải nghiệm" description="Hãy là người đầu tiên chia sẻ hành trình ở địa điểm này." />}
             {relatedPosts.map((post) => (
               <Card key={post.id}>
                 <CardContent className="pt-5">
@@ -313,7 +321,7 @@ export function PlaceDetailPage() {
                   )}
                   <div className="flex gap-2">
                     <Button onClick={() => void submitReview()}>{ownReview ? "Cập nhật đánh giá" : "Gửi đánh giá"}</Button>
-                    {ownReview && <Button onClick={() => void removeReview(ownReview)} variant="outline">Xóa đánh giá</Button>}
+                    {ownReview && <Button onClick={() => setDeleteReviewTarget(ownReview)} variant="outline">Xóa đánh giá</Button>}
                   </div>
                 </CardContent>
               </Card>
@@ -326,7 +334,7 @@ export function PlaceDetailPage() {
               </Card>
             )}
             <div className="mt-4 grid gap-4">
-              {reviews.length === 0 && <Card><CardContent className="pt-5 text-sm text-muted-foreground">Chưa có đánh giá nào.</CardContent></Card>}
+              {reviews.length === 0 && <EmptyState title="Chưa có đánh giá" description="Đánh giá đầu tiên sẽ giúp cộng đồng chọn trải nghiệm tốt hơn." />}
               {reviews.map((review) => (
                 <Card key={review.id}>
                   <CardContent className="pt-5">
@@ -375,6 +383,13 @@ export function PlaceDetailPage() {
           </Card>
         </aside>
       </div>
+      <ConfirmDialog
+        open={Boolean(deleteReviewTarget)}
+        title="Xóa đánh giá?"
+        description="Hành động này sẽ ẩn đánh giá của bạn khỏi địa điểm."
+        onCancel={() => setDeleteReviewTarget(null)}
+        onConfirm={() => deleteReviewTarget && void removeReview(deleteReviewTarget)}
+      />
     </section>
   );
 }

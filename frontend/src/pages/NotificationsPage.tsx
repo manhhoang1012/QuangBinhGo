@@ -4,6 +4,10 @@ import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/common/EmptyState";
+import { ErrorState } from "@/components/common/ErrorState";
+import { LoadingSkeleton } from "@/components/common/LoadingSkeleton";
+import { showToast } from "@/components/common/toastStore";
 import {
   deleteNotification,
   getNotifications,
@@ -52,12 +56,15 @@ export function NotificationsPage() {
 
   const handleDelete = async (notification: NotificationItem) => {
     setItems((current) => current.filter((item) => item.id !== notification.id));
-    await deleteNotification(notification.id).catch(() => setItems((current) => [notification, ...current]));
+    await deleteNotification(notification.id).then(() => showToast("Đã xóa thông báo.", "success")).catch(() => {
+      showToast("Không thể xóa thông báo.", "error");
+      setItems((current) => [notification, ...current]);
+    });
   };
 
   const handleMarkAll = async () => {
     setItems((current) => current.map((item) => ({ ...item, is_read: true })));
-    await markAllNotificationsRead().catch(() => undefined);
+    await markAllNotificationsRead().then(() => showToast("Đã đánh dấu tất cả đã đọc.", "success")).catch(() => undefined);
   };
 
   return (
@@ -87,9 +94,9 @@ export function NotificationsPage() {
           <CardTitle className="text-base">Danh sách thông báo</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {loading && <p className="px-4 py-10 text-center text-sm text-muted-foreground">Đang tải thông báo...</p>}
-          {error && !loading && <p className="px-4 py-10 text-center text-sm text-destructive">{error}</p>}
-          {!loading && !error && items.length === 0 && <p className="px-4 py-10 text-center text-sm text-muted-foreground">Bạn chưa có thông báo nào.</p>}
+          {loading && <div className="p-4"><LoadingSkeleton count={4} className="h-20" /></div>}
+          {error && !loading && <div className="p-4"><ErrorState message={error} onRetry={() => window.location.reload()} /></div>}
+          {!loading && !error && items.length === 0 && <div className="p-4"><EmptyState title="Bạn chưa có thông báo nào" description="Thông báo về like, comment, follow và kiểm duyệt sẽ xuất hiện ở đây." /></div>}
           {!loading &&
             !error &&
             items.map((notification) => (
