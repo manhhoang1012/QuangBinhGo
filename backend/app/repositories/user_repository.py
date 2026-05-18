@@ -137,6 +137,15 @@ class UserRepository:
         self.db.refresh(auth_token)
         return auth_token
 
+    def revoke_auth_tokens(self, *, user_id: int, purpose: str) -> int:
+        now = datetime.now(timezone.utc)
+        tokens = list(self.db.scalars(select(AuthToken).where(AuthToken.user_id == user_id, AuthToken.purpose == purpose, AuthToken.used_at.is_(None))).all())
+        for token in tokens:
+            token.used_at = now
+            self.db.add(token)
+        self.db.commit()
+        return len(tokens)
+
     def get_valid_auth_token(self, *, token: str, purpose: str) -> AuthToken | None:
         now = datetime.now(timezone.utc)
         statement = select(AuthToken).where(

@@ -11,11 +11,18 @@ export const authStorage = {
   getToken() {
     return localStorage.getItem("access_token");
   },
+  getRefreshToken() {
+    return localStorage.getItem("refresh_token");
+  },
   setToken(token: string) {
     localStorage.setItem("access_token", token);
   },
+  setRefreshToken(token: string) {
+    localStorage.setItem("refresh_token", token);
+  },
   clear() {
     localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
     localStorage.removeItem("auth_user");
   },
 };
@@ -27,6 +34,43 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+let refreshPromise: Promise<string | null> | null = null;
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const original = error.config;
+    if (error.response?.status !== 401 || original?._retry || original?.url?.includes("/auth/refresh")) {
+      return Promise.reject(error);
+    }
+    const refreshToken = authStorage.getRefreshToken();
+    if (!refreshToken) return Promise.reject(error);
+    original._retry = true;
+    refreshPromise ??= api.post("/auth/refresh", { refresh_token: refreshToken })
+      .then((response) => {
+        const access = response.data.access_token as string;
+        const refresh = response.data.refresh_token as string | undefined;
+        authStorage.setToken(access);
+        if (refresh) authStorage.setRefreshToken(refresh);
+        localStorage.setItem("auth_user", JSON.stringify(response.data.user));
+        window.dispatchEvent(new Event("auth-change"));
+        return access;
+      })
+      .catch(() => {
+        authStorage.clear();
+        window.dispatchEvent(new Event("auth-change"));
+        return null;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+    const newToken = await refreshPromise;
+    if (!newToken) return Promise.reject(error);
+    original.headers.Authorization = `Bearer ${newToken}`;
+    return api(original);
+  },
+);
 
 export interface User {
   id: number;

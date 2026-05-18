@@ -25,6 +25,7 @@ class Token(BaseModel):
 
 class AuthResponse(Token):
     user: UserRead
+    refresh_token: str | None = None
 
 
 class LogoutResponse(BaseModel):
@@ -47,6 +48,10 @@ class VerifyEmailRequest(BaseModel):
 
 class ResendVerificationRequest(BaseModel):
     email: EmailStr
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str = Field(min_length=32)
 
 
 class DevTokenResponse(BaseModel):

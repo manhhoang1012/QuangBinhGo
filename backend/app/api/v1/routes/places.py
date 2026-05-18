@@ -4,6 +4,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user, require_admin
+from app.core.content_safety import validate_not_spam
 from app.db.session import get_db
 from app.models.place import Place
 from app.models.review_post import PlaceReview, PlaceReviewHelpful, PlaceReviewReport
@@ -396,6 +397,7 @@ def create_place_review(
     existing = db.scalar(select(PlaceReview).where(PlaceReview.place_id == place_id, PlaceReview.user_id == current_user.id, PlaceReview.status != "deleted"))
     if existing:
         raise HTTPException(status_code=409, detail="You already reviewed this place.")
+    payload.content = validate_not_spam(payload.content)
     review = PlaceReview(place_id=place_id, user_id=current_user.id, rating=payload.rating, content=payload.content, images=payload.images)
     db.add(review)
     db.commit()
@@ -416,6 +418,8 @@ def update_place_review(
     review = get_place_review_or_404(db, place_id, review_id)
     if review.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only update your own review.")
+    if payload.content is not None:
+        payload.content = validate_not_spam(payload.content)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(review, field, value)
     db.add(review)

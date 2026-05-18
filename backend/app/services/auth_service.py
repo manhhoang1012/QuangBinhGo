@@ -4,7 +4,8 @@ import re
 
 from fastapi import HTTPException, status
 
-from app.core.security import create_access_token, get_password_hash, verify_password
+from app.core.config import settings
+from app.core.security import create_user_access_token, get_password_hash, hash_token, verify_password
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import AuthResponse, DevTokenResponse, LoginRequest, ResetPasswordRequest, UserCreate
@@ -74,7 +75,13 @@ class AuthService:
 
         return self._build_auth_response(user)
 
-    def logout(self) -> dict[str, str]:
+    def logout(self, refresh_token: str | None = None, current_user: User | None = None) -> dict[str, str]:
+        if refresh_token:
+            auth_token = self.user_repository.get_valid_auth_token(token=hash_token(refresh_token), purpose="refresh_token")
+            if auth_token:
+                self.user_repository.mark_token_used(auth_token)
+        elif current_user:
+            self.user_repository.revoke_auth_tokens(user_id=current_user.id, purpose="refresh_token")
         return {"message": "Logged out successfully."}
 
     def forgot_password(self, email: str) -> DevTokenResponse:
@@ -140,21 +147,37 @@ class AuthService:
             dev_url=dev_url,
         )
 
-    def refresh_token(self, current_user: User) -> AuthResponse:
-        return self._build_auth_response(current_user)
+    def refresh_token(self, refresh_token: str) -> AuthResponse:
+        auth_token = self.user_repository.get_valid_auth_token(token=hash_token(refresh_token), purpose="refresh_token")
+        if not auth_token:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token.")
+        user = self.user_repository.get(auth_token.user_id)
+        if not user or not user.is_active or user.deleted_at is not None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token.")
+        self.user_repository.mark_token_used(auth_token)
+        return self._build_auth_response(user)
 
     def _build_auth_response(self, user: User) -> AuthResponse:
         if not getattr(user, "role", None):
             user.role = "admin" if getattr(user, "is_admin", False) else "user"
         if getattr(user, "email_verified", None) is None:
             user.email_verified = False
-        access_token = create_access_token(subject=str(user.id))
-        return AuthResponse(access_token=access_token, user=user)
+        access_token = create_user_access_token(user_id=user.id, role=user.role)
+        refresh_token = self._create_refresh_token(user)
+        return AuthResponse(access_token=access_token, refresh_token=refresh_token, user=user)
 
     def _create_token(self, *, user: User, purpose: str, minutes: int) -> str:
         token = secrets.token_urlsafe(32)
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=minutes)
         self.user_repository.create_auth_token(user_id=user.id, token=token, purpose=purpose, expires_at=expires_at)
+        return token
+
+    def _create_refresh_token(self, user: User) -> str | None:
+        if not hasattr(self.user_repository, "create_auth_token"):
+            return None
+        token = secrets.token_urlsafe(48)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
+        self.user_repository.create_auth_token(user_id=user.id, token=hash_token(token), purpose="refresh_token", expires_at=expires_at)
         return token
 
     def _username_from_email(self, email: str) -> str:

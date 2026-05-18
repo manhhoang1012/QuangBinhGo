@@ -20,10 +20,13 @@ class Settings(BaseSettings):
     debug: bool = Field(default=True, alias="APP_DEBUG")
     api_v1_prefix: str = "/api/v1"
     cors_origins_raw: str = Field(default="http://localhost:5173,http://127.0.0.1:5173", alias="CORS_ORIGINS")
+    backend_cors_origins: str | None = Field(default=None, alias="BACKEND_CORS_ORIGINS")
 
     database_url: str = "postgresql+psycopg://quangbinhgo:quangbinhgo@localhost:5432/quangbinhgo"
     secret_key: str = "change-me"
-    access_token_expire_minutes: int = 60
+    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 14
 
     cloudinary_cloud_name: str = ""
     cloudinary_api_key: str = ""
@@ -54,7 +57,8 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins(self) -> list[str]:
-        return [origin.strip() for origin in self.cors_origins_raw.split(",") if origin.strip()]
+        raw = self.backend_cors_origins or self.cors_origins_raw
+        return [origin.strip() for origin in raw.split(",") if origin.strip()]
 
 
 @lru_cache
@@ -62,6 +66,8 @@ def get_settings() -> Settings:
     loaded_settings = Settings()
     if loaded_settings.app_env.lower() in {"production", "prod"} and loaded_settings.secret_key == "change-me":
         raise RuntimeError("JWT secret_key must be configured in production. Set SECRET_KEY in .env.")
+    if loaded_settings.app_env.lower() in {"production", "prod"} and "*" in loaded_settings.cors_origins:
+        raise RuntimeError("Wildcard CORS origins are not allowed in production. Set BACKEND_CORS_ORIGINS explicitly.")
     return loaded_settings
 
 

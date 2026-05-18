@@ -1,9 +1,9 @@
 from app.db.base import Base
 from app.db.session import engine
-from app.models import AuthToken, Category, CommentLike, CommentReport, Itinerary, ItineraryItem, ModerationAction, Notification, Place, PlaceReview, PlaceReviewHelpful, PlaceReviewReport, PostComment, PostHide, PostLike, PostReport, PostSave, ReviewPost, SiteSettings, User, UserFollow, UserWarning
+from app.models import AdminAuditLog, AuthToken, Category, CommentLike, CommentReport, Itinerary, ItineraryItem, ModerationAction, Notification, Place, PlaceReview, PlaceReviewHelpful, PlaceReviewReport, PostComment, PostHide, PostLike, PostReport, PostSave, ReviewPost, SiteSettings, User, UserFollow, UserWarning
 from sqlalchemy import inspect, text
 
-__all__ = ["AuthToken", "Category", "CommentLike", "CommentReport", "Itinerary", "ItineraryItem", "ModerationAction", "Notification", "Place", "PlaceReview", "PlaceReviewHelpful", "PlaceReviewReport", "PostComment", "PostHide", "PostLike", "PostReport", "PostSave", "ReviewPost", "SiteSettings", "User", "UserFollow", "UserWarning"]
+__all__ = ["AdminAuditLog", "AuthToken", "Category", "CommentLike", "CommentReport", "Itinerary", "ItineraryItem", "ModerationAction", "Notification", "Place", "PlaceReview", "PlaceReviewHelpful", "PlaceReviewReport", "PostComment", "PostHide", "PostLike", "PostReport", "PostSave", "ReviewPost", "SiteSettings", "User", "UserFollow", "UserWarning"]
 
 
 def init_db() -> None:

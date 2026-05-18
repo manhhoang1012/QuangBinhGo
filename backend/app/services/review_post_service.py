@@ -2,6 +2,7 @@ import re
 
 from fastapi import HTTPException, status
 
+from app.core.content_safety import validate_not_spam
 from app.models.review_post import PostComment
 from app.models.user import User
 from app.repositories.place_repository import PlaceRepository
@@ -44,6 +45,9 @@ class ReviewPostService:
         self.vector_search_service = vector_search_service
 
     def create_post(self, *, current_user: User, post_create: ReviewPostCreate) -> ReviewPostRead:
+        post_create.content = validate_not_spam(post_create.content)
+        if post_create.title:
+            post_create.title = validate_not_spam(post_create.title)
         if post_create.place_id is not None and not self.place_repository.get(post_create.place_id):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found.")
         post_create.hashtags = self._normalize_hashtags(content=post_create.content, hashtags=post_create.hashtags)
@@ -169,6 +173,7 @@ class ReviewPostService:
 
     def comment_post(self, *, post_id: int, current_user: User, comment_create: CommentCreate) -> PostComment:
         post = self._get_existing_post(post_id)
+        comment_create.content = validate_not_spam(comment_create.content)
         self._ensure_comment_is_safe(comment_create.content)
         comment = self.review_post_repository.create_comment(post_id=post_id, user_id=current_user.id, comment_create=comment_create)
         self._safe_notify(lambda service: service.create_post_comment_notification(post=post, comment=comment, actor=current_user))
@@ -181,6 +186,7 @@ class ReviewPostService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found.")
         if parent.status != "visible":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot reply to this comment.")
+        comment_create.content = validate_not_spam(comment_create.content)
         self._ensure_comment_is_safe(comment_create.content)
         reply = self.review_post_repository.create_comment(post_id=post_id, user_id=current_user.id, comment_create=comment_create, parent_comment_id=comment_id)
         self._safe_notify(lambda service: service.create_comment_reply_notification(post=post, parent_comment=parent, reply=reply, actor=current_user))
@@ -195,6 +201,7 @@ class ReviewPostService:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only update your own comment.")
         if comment.status == "deleted":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Deleted comments cannot be edited.")
+        comment_update.content = validate_not_spam(comment_update.content)
         self._ensure_comment_is_safe(comment_update.content)
         return self.review_post_repository.update_comment(comment, comment_update.content)
 

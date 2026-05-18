@@ -6,6 +6,8 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.api.v1.routes import ai
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.rate_limit import RateLimitMiddleware
+from app.core.security_headers import SecurityHeadersMiddleware
 from app.db.init_db import init_db
 from pathlib import Path
 
@@ -30,6 +32,8 @@ def create_app() -> FastAPI:
         same_site="lax",
         https_only=settings.app_env.lower() in {"production", "prod"},
     )
+    app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
 
     app.include_router(api_router, prefix=settings.api_v1_prefix)
     app.include_router(ai.router, prefix="/api/ai", tags=["ai"])

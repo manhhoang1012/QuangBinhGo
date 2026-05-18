@@ -4,6 +4,7 @@ import { ProtectedAdminRoute } from "@/components/ProtectedAdminRoute";
 import { RootLayout } from "@/layouts/RootLayout";
 import { AdminDashboardPage } from "@/pages/AdminDashboardPage";
 import { AdminCategoriesPage } from "@/pages/AdminCategoriesPage";
+import { AdminAuditLogsPage } from "@/pages/AdminAuditLogsPage";
 import { AdminCommentsPage } from "@/pages/AdminCommentsPage";
 import { AdminPlacesPage } from "@/pages/AdminPlacesPage";
 import { AdminPostsPage } from "@/pages/AdminPostsPage";
@@ -337,6 +338,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedAdminRoute allowedRoles={["admin"]}>
             <AdminSettingsPage />
+          </ProtectedAdminRoute>
+        ),
+      },
+      {
+        path: "admin/audit-logs",
+        element: (
+          <ProtectedAdminRoute allowedRoles={["admin"]}>
+            <AdminAuditLogsPage />
           </ProtectedAdminRoute>
         ),
       },

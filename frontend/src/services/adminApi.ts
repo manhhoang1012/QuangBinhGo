@@ -35,6 +35,27 @@ export interface AdminReportList {
   limit: number;
 }
 
+export interface AdminAuditLog {
+  id: number;
+  actor?: User | null;
+  actor_id?: number | null;
+  action: string;
+  target_type: string;
+  target_id?: number | null;
+  metadata?: Record<string, unknown> | null;
+  ip_address?: string | null;
+  user_agent?: string | null;
+  created_at: string;
+}
+
+export interface AdminAuditLogList {
+  items: AdminAuditLog[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
 export interface AdminComment {
   id: number;
   content: string;
@@ -163,6 +184,11 @@ export async function getAdminReports(params: { type?: string; status?: string; 
 
 export async function resolveReport(id: number, data: { type: "post" | "comment" | "review"; status: "resolved" | "rejected" }) {
   const response = await api.patch<{ id: number; type: string; status: string }>(`/admin/reports/${id}/status`, data);
+  return response.data;
+}
+
+export async function getAdminAuditLogs(params: { action?: string; actor_id?: number; target_type?: string; page?: number; limit?: number } = {}) {
+  const response = await api.get<AdminAuditLogList>("/admin/audit-logs", { params });
   return response.data;
 }
 

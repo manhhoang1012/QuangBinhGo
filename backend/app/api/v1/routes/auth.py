@@ -16,6 +16,7 @@ from app.schemas.auth import (
     LogoutResponse,
     ResendVerificationRequest,
     ResetPasswordRequest,
+    RefreshTokenRequest,
     UserCreate,
     VerifyEmailRequest,
 )
@@ -82,8 +83,12 @@ def login(
 
 
 @router.post("/logout", response_model=LogoutResponse)
-def logout(_: User = Depends(get_current_user), auth_service: AuthService = Depends(get_auth_service)) -> LogoutResponse:
-    return auth_service.logout()
+def logout(
+    request: RefreshTokenRequest | None = None,
+    current_user: User = Depends(get_current_user),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> LogoutResponse:
+    return auth_service.logout(refresh_token=request.refresh_token if request else None, current_user=current_user)
 
 
 @router.post("/forgot-password", response_model=DevTokenResponse)
@@ -118,12 +123,13 @@ def resend_verification_email(
     return auth_service.resend_verification_email(request.email)
 
 
+@router.post("/refresh", response_model=AuthResponse)
 @router.post("/refresh-token", response_model=AuthResponse)
 def refresh_token(
-    current_user: User = Depends(get_current_user),
+    request: RefreshTokenRequest,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> AuthResponse:
-    return auth_service.refresh_token(current_user)
+    return auth_service.refresh_token(request.refresh_token)
 
 
 @router.get("/google/login")

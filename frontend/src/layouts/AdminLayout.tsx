@@ -20,6 +20,7 @@ const adminNavItems = [
   { label: "Admin Reports", to: "/admin/reports", icon: Flag, roles: ["admin"] },
   { label: "Categories", to: "/admin/categories", icon: FolderTree, roles: ["admin"] },
   { label: "Settings", to: "/admin/settings", icon: Settings, roles: ["admin"] },
+  { label: "Audit Logs", to: "/admin/audit-logs", icon: BarChart3, roles: ["admin"] },
 ];
 
 export function AdminLayout({ children, user }: { children: React.ReactNode; user: User | null }) {

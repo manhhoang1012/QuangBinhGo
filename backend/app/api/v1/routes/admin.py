@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -13,6 +13,7 @@ from app.repositories.place_repository import PlaceRepository
 from app.repositories.review_post_repository import ReviewPostRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.place import CategoryCreate, CategoryRead, CategoryUpdate, PlaceCreate, PlaceRead, PlaceUpdate
+from app.schemas.audit_log import AdminAuditLogListRead, AdminAuditLogRead
 from app.schemas.review_post import AdminCommentRead, AdminPlaceReviewRead, AdminPostReportRead, CommentReportRead, CommentStatusUpdate, PlaceReviewReportRead, PlaceReviewStatusUpdate, PostReportRead, PostStatusUpdate, ReviewPostRead
 from app.schemas.site_settings import SettingsUploadResponse, SiteSettingsPayload
 from app.schemas.user import AdminUserRead, MessageResponse, UserRoleUpdate, UserStatusUpdate
@@ -21,6 +22,7 @@ from app.services.notification_service import NotificationService
 from app.services.review_post_service import ReviewPostService
 from app.services.settings_service import SettingsService
 from app.services.upload_service import UploadService
+from app.services.audit_service import AuditService
 from app.services.user_service import UserService
 
 router = APIRouter()
@@ -68,20 +70,44 @@ def user_summary(user: User | None) -> dict | None:
     }
 
 
+def audit(db: Session, request: Request | None, actor: User, action: str, target_type: str, target_id: int | None = None, metadata: dict | None = None) -> None:
+    try:
+        AuditService(db).log(actor=actor, action=action, target_type=target_type, target_id=target_id, metadata=metadata, request=request)
+    except Exception:
+        return
+
+
 @router.get("/settings", response_model=SiteSettingsPayload)
 def get_settings(_: User = Depends(require_admin), db: Session = Depends(get_db)) -> SiteSettingsPayload:
     return SettingsService(db).get_payload()
 
 
 @router.put("/settings", response_model=SiteSettingsPayload)
-def update_settings(payload: SiteSettingsPayload, _: User = Depends(require_admin), db: Session = Depends(get_db)) -> SiteSettingsPayload:
-    return SettingsService(db).update(payload)
+def update_settings(payload: SiteSettingsPayload, request: Request, current_user: User = Depends(require_admin), db: Session = Depends(get_db)) -> SiteSettingsPayload:
+    result = SettingsService(db).update(payload)
+    audit(db, request, current_user, "settings.update", "settings", metadata={"site_name": payload.site_name})
+    return result
+
+
+@router.get("/audit-logs", response_model=AdminAuditLogListRead)
+def list_audit_logs(
+    action: str | None = None,
+    actor_id: int | None = None,
+    target_type: str | None = None,
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=50, ge=1, le=100),
+    _: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> AdminAuditLogListRead:
+    logs, total, total_pages = AuditService(db).list_logs(action=action, actor_id=actor_id, target_type=target_type, page=page, limit=limit)
+    return AdminAuditLogListRead(items=[AdminAuditLogRead.model_validate(log) for log in logs], total=total, page=page, limit=limit, total_pages=total_pages)
 
 
 @router.post("/settings/upload", response_model=SettingsUploadResponse)
 async def upload_setting_image(
     upload_type: str = Query(...),
     file: UploadFile = File(...),
+    request: Request = None,
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> SettingsUploadResponse:
@@ -94,15 +120,19 @@ async def upload_setting_image(
     normalized_type = "hero" if upload_type in {"hero_image", "hero_background"} else upload_type
     response = await UploadService().upload_files([file], "settings_image", folder=f"settings/{normalized_type}")
     url = response.urls[0]
+    audit(db, request, current_user, "settings.upload", "media", metadata={"upload_type": upload_type, "url": url})
     return SettingsUploadResponse(url=url, image_url=url)
 
 
 @router.post("/uploads/places")
 async def upload_place_images(
     files: list[UploadFile] = File(...),
-    _: User = Depends(require_admin),
+    request: Request = None,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
 ) -> dict[str, list[str]]:
     response = await UploadService().upload_files(files, "place_image")
+    audit(db, request, current_user, "places.upload_images", "media", metadata={"count": len(response.urls)})
     return {"urls": response.urls}
 
 
@@ -183,30 +213,39 @@ def get_user(_: User = Depends(require_admin), target: User = Depends(get_target
 @router.patch("/users/{user_id}/status", response_model=AdminUserRead)
 def update_user_status(
     status_update: UserStatusUpdate,
+    request: Request,
     actor: User = Depends(require_admin),
     target: User = Depends(get_target_user),
     db: Session = Depends(get_db),
 ) -> User:
-    return user_service(db).update_user_status(actor=actor, target=target, is_active=status_update.is_active)
+    result = user_service(db).update_user_status(actor=actor, target=target, is_active=status_update.is_active)
+    audit(db, request, actor, "users.status_update", "user", target.id, {"is_active": status_update.is_active})
+    return result
 
 
 @router.patch("/users/{user_id}/role", response_model=AdminUserRead)
 def update_user_role(
     role_update: UserRoleUpdate,
+    request: Request,
     actor: User = Depends(require_admin),
     target: User = Depends(get_target_user),
     db: Session = Depends(get_db),
 ) -> User:
-    return user_service(db).update_user_role(actor=actor, target=target, role=role_update.role)
+    result = user_service(db).update_user_role(actor=actor, target=target, role=role_update.role)
+    audit(db, request, actor, "users.role_update", "user", target.id, {"role": role_update.role})
+    return result
 
 
 @router.delete("/users/{user_id}", response_model=MessageResponse)
 def delete_user(
+    request: Request,
     actor: User = Depends(require_admin),
     target: User = Depends(get_target_user),
     db: Session = Depends(get_db),
 ) -> MessageResponse:
-    return user_service(db).admin_delete_user(actor=actor, target=target)
+    result = user_service(db).admin_delete_user(actor=actor, target=target)
+    audit(db, request, actor, "users.delete", "user", target.id)
+    return result
 
 
 @router.get("/places", response_model=list[PlaceRead])
@@ -227,18 +266,23 @@ def admin_get_place(place_id: int, _: User = Depends(require_admin), db: Session
 
 
 @router.post("/places", response_model=PlaceRead, status_code=status.HTTP_201_CREATED)
-def admin_create_place(payload: PlaceCreate, _: User = Depends(require_admin), db: Session = Depends(get_db)):
-    return PlaceService(PlaceRepository(db)).create_place(payload)
+def admin_create_place(payload: PlaceCreate, request: Request, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    place = PlaceService(PlaceRepository(db)).create_place(payload)
+    audit(db, request, current_user, "places.create", "place", place.id, {"name": place.name})
+    return place
 
 
 @router.patch("/places/{place_id}", response_model=PlaceRead)
-def admin_update_place(place_id: int, payload: PlaceUpdate, _: User = Depends(require_admin), db: Session = Depends(get_db)):
-    return PlaceService(PlaceRepository(db)).update_place(place_id, payload)
+def admin_update_place(place_id: int, payload: PlaceUpdate, request: Request, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    place = PlaceService(PlaceRepository(db)).update_place(place_id, payload)
+    audit(db, request, current_user, "places.update", "place", place_id)
+    return place
 
 
 @router.delete("/places/{place_id}", response_model=MessageResponse)
-def admin_delete_place(place_id: int, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def admin_delete_place(place_id: int, request: Request, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
     PlaceService(PlaceRepository(db)).delete_place(place_id)
+    audit(db, request, current_user, "places.delete", "place", place_id)
     return MessageResponse(message="Place deleted successfully.")
 
 
@@ -289,13 +333,14 @@ def admin_get_post(post_id: int, _: User = Depends(require_moderator_or_admin), 
 
 
 @router.patch("/posts/{post_id}/status", response_model=ReviewPostRead)
-def admin_update_post_status(post_id: int, payload: PostStatusUpdate, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
+def admin_update_post_status(post_id: int, payload: PostStatusUpdate, request: Request, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
     post = ReviewPostRepository(db).get(post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found.")
     post.status = payload.status
     db.add(post)
     db.commit()
+    audit(db, request, _, "posts.status_update", "post", post_id, {"status": payload.status})
     if payload.status != "visible" and post.user_id != _.id:
         try:
             NotificationService(db).create_post_moderation_notification(post=post, actor=_, hidden=True)
@@ -305,18 +350,19 @@ def admin_update_post_status(post_id: int, payload: PostStatusUpdate, _: User = 
 
 
 @router.patch("/posts/{post_id}/featured", response_model=ReviewPostRead)
-def admin_update_post_featured(post_id: int, payload: PostFeaturedUpdate, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def admin_update_post_featured(post_id: int, payload: PostFeaturedUpdate, request: Request, _: User = Depends(require_admin), db: Session = Depends(get_db)):
     post = ReviewPostRepository(db).get(post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found.")
     post.is_featured = payload.is_featured
     db.add(post)
     db.commit()
+    audit(db, request, _, "posts.featured_update", "post", post_id, {"is_featured": payload.is_featured})
     return admin_get_post(post_id, _, db)
 
 
 @router.delete("/posts/{post_id}", response_model=MessageResponse)
-def admin_delete_post(post_id: int, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
+def admin_delete_post(post_id: int, request: Request, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
     post = ReviewPostRepository(db).get(post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found.")
@@ -327,6 +373,7 @@ def admin_delete_post(post_id: int, _: User = Depends(require_moderator_or_admin
             pass
     db.delete(post)
     db.commit()
+    audit(db, request, _, "posts.delete", "post", post_id)
     return MessageResponse(message="Post deleted successfully.")
 
 
@@ -413,6 +460,7 @@ def admin_resolve_report(report_id: int, _: User = Depends(require_moderator_or_
 def admin_update_report_status(
     report_id: int,
     payload: AdminReportResolvePayload,
+    request: Request,
     _: User = Depends(require_moderator_or_admin),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -423,6 +471,7 @@ def admin_update_report_status(
     report.status = payload.status
     db.add(report)
     db.commit()
+    audit(db, request, _, f"reports.{payload.status}", payload.type, report_id)
     return {"id": report_id, "type": payload.type, "status": payload.status}
 
 
@@ -478,17 +527,19 @@ def admin_list_comment_reports(
 
 
 @router.patch("/comments/{comment_id}/status", response_model=AdminCommentRead)
-def admin_update_comment_status(comment_id: int, payload: CommentStatusUpdate, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
+def admin_update_comment_status(comment_id: int, payload: CommentStatusUpdate, request: Request, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
     comment = post_service(db).update_comment_status(comment_id=comment_id, status_update=payload)
+    audit(db, request, _, "comments.status_update", "comment", comment_id, {"status": payload.status})
     return admin_list_comments(post_id=comment.post_id, user_id=None, status_value=None, skip=0, limit=100, _=_, db=db)[0]
 
 
 @router.delete("/comments/{comment_id}", response_model=MessageResponse)
-def admin_delete_comment(comment_id: int, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
+def admin_delete_comment(comment_id: int, request: Request, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
     comment = db.get(PostComment, comment_id)
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found.")
     post_service(db).update_comment_status(comment_id=comment_id, status_update=CommentStatusUpdate(status="deleted"))
+    audit(db, request, _, "comments.delete", "comment", comment_id)
     return MessageResponse(message="Comment deleted successfully.")
 
 
@@ -520,7 +571,7 @@ def admin_list_place_review_reports(_: User = Depends(require_moderator_or_admin
 
 
 @router.patch("/place-reviews/{review_id}/status", response_model=AdminPlaceReviewRead)
-def admin_update_place_review_status(review_id: int, payload: PlaceReviewStatusUpdate, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
+def admin_update_place_review_status(review_id: int, payload: PlaceReviewStatusUpdate, request: Request, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
     review = db.get(PlaceReview, review_id)
     if not review:
         raise HTTPException(status_code=404, detail="Review not found.")
@@ -534,12 +585,13 @@ def admin_update_place_review_status(review_id: int, payload: PlaceReviewStatusU
         place.review_count = int(review_count or 0)
         db.add(place)
         db.commit()
+    audit(db, request, _, "reviews.status_update", "review", review_id, {"status": payload.status})
     return admin_list_reviews(status_value=None, rating=None, _=_, db=db)[0]
 
 
 @router.delete("/reviews/{review_id}", response_model=MessageResponse)
 @router.delete("/place-reviews/{review_id}", response_model=MessageResponse)
-def admin_delete_review(review_id: int, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
+def admin_delete_review(review_id: int, request: Request, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
     review = db.get(PlaceReview, review_id)
     if not review:
         raise HTTPException(status_code=404, detail="Review not found.")
@@ -555,6 +607,7 @@ def admin_delete_review(review_id: int, _: User = Depends(require_moderator_or_a
         place.review_count = int(review_count or 0)
         db.add(place)
         db.commit()
+    audit(db, request, _, "reviews.delete", "review", review_id)
     return MessageResponse(message="Review deleted successfully.")
 
 
@@ -564,16 +617,17 @@ def admin_list_categories(_: User = Depends(require_admin), db: Session = Depend
 
 
 @router.post("/categories", response_model=CategoryRead, status_code=status.HTTP_201_CREATED)
-def admin_create_category(payload: CategoryCreate, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def admin_create_category(payload: CategoryCreate, request: Request, _: User = Depends(require_admin), db: Session = Depends(get_db)):
     category = Category(**payload.model_dump())
     db.add(category)
     db.commit()
     db.refresh(category)
+    audit(db, request, _, "categories.create", "category", category.id, {"name": category.name})
     return category
 
 
 @router.patch("/categories/{category_id}", response_model=CategoryRead)
-def admin_update_category(category_id: int, payload: CategoryUpdate, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def admin_update_category(category_id: int, payload: CategoryUpdate, request: Request, _: User = Depends(require_admin), db: Session = Depends(get_db)):
     category = db.get(Category, category_id)
     if not category:
         raise HTTPException(status_code=404, detail="Category not found.")
@@ -582,14 +636,16 @@ def admin_update_category(category_id: int, payload: CategoryUpdate, _: User = D
     db.add(category)
     db.commit()
     db.refresh(category)
+    audit(db, request, _, "categories.update", "category", category_id)
     return category
 
 
 @router.delete("/categories/{category_id}", response_model=MessageResponse)
-def admin_delete_category(category_id: int, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def admin_delete_category(category_id: int, request: Request, _: User = Depends(require_admin), db: Session = Depends(get_db)):
     category = db.get(Category, category_id)
     if not category:
         raise HTTPException(status_code=404, detail="Category not found.")
     db.delete(category)
     db.commit()
+    audit(db, request, _, "categories.delete", "category", category_id)
     return MessageResponse(message="Category deleted successfully.")

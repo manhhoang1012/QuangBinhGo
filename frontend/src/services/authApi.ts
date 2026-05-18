@@ -12,11 +12,13 @@ interface AuthPayload {
 interface AuthResponse {
   access_token: string;
   token_type: string;
+  refresh_token?: string | null;
   user: User;
 }
 
 function persistAuth(response: AuthResponse) {
   authStorage.setToken(response.access_token);
+  if (response.refresh_token) authStorage.setRefreshToken(response.refresh_token);
   localStorage.setItem("auth_user", JSON.stringify(response.user));
   window.dispatchEvent(new Event("auth-change"));
   return response;
@@ -34,7 +36,7 @@ export async function register(payload: Required<AuthPayload>) {
 
 export async function logout() {
   try {
-    await api.post("/auth/logout");
+    await api.post("/auth/logout", { refresh_token: authStorage.getRefreshToken() });
   } catch {
     // Local logout should still happen if the token is already invalid.
   }
@@ -43,7 +45,9 @@ export async function logout() {
 }
 
 export async function refreshToken() {
-  const response = await api.post<AuthResponse>("/auth/refresh-token");
+  const refresh_token = authStorage.getRefreshToken();
+  if (!refresh_token) throw new Error("Missing refresh token");
+  const response = await api.post<AuthResponse>("/auth/refresh", { refresh_token });
   return persistAuth(response.data);
 }
 
