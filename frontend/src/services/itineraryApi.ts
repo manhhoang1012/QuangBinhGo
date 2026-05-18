@@ -43,10 +43,14 @@ export interface AiItinerary {
   days: Array<{ day_number: number; summary: string; items: Array<{ time: string; title: string; place_id?: number | null; place_name?: string | null; note: string; estimated_cost?: number | null; transport_note?: string | null; duration_minutes: number }> }>;
 }
 
+export type ItineraryPayload = Omit<Partial<Itinerary>, "id" | "items" | "created_at" | "updated_at"> & {
+  items?: Partial<ItineraryItem>[];
+};
+
 export const getItineraries = async () => (await api.get<Itinerary[]>("/itineraries")).data;
-export const createItinerary = async (data: Partial<Itinerary> & { items?: Partial<ItineraryItem>[] }) => (await api.post<Itinerary>("/itineraries", data)).data;
+export const createItinerary = async (data: ItineraryPayload) => (await api.post<Itinerary>("/itineraries", data)).data;
 export const getItinerary = async (id: number) => (await api.get<Itinerary>(`/itineraries/${id}`)).data;
-export const updateItinerary = async (id: number, data: Partial<Itinerary>) => (await api.patch<Itinerary>(`/itineraries/${id}`, data)).data;
+export const updateItinerary = async (id: number, data: Omit<ItineraryPayload, "items">) => (await api.patch<Itinerary>(`/itineraries/${id}`, data)).data;
 export const deleteItinerary = async (id: number) => api.delete(`/itineraries/${id}`);
 export const addItineraryItem = async (id: number, data: Partial<ItineraryItem>) => (await api.post<ItineraryItem>(`/itineraries/${id}/items`, data)).data;
 export const updateItineraryItem = async (id: number, itemId: number, data: Partial<ItineraryItem>) => (await api.patch<ItineraryItem>(`/itineraries/${id}/items/${itemId}`, data)).data;

@@ -1,8 +1,8 @@
 from uuid import uuid4
 
-from fastapi import HTTPException, status
-from sqlalchemy.orm import Session, selectinload
+from fastapi import HTTPException
 from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
 from app.models.itinerary import Itinerary, ItineraryItem
 from app.models.place import Place
@@ -25,7 +25,12 @@ class ItineraryService:
         self.db = db
 
     def list_user_itineraries(self, user: User) -> list[Itinerary]:
-        return list(self.db.scalars(select(Itinerary).where(Itinerary.user_id == user.id).options(selectinload(Itinerary.items).selectinload(ItineraryItem.place)).order_by(Itinerary.updated_at.desc())).all())
+        return list(self.db.scalars(
+            select(Itinerary)
+            .where(Itinerary.user_id == user.id)
+            .options(selectinload(Itinerary.items).selectinload(ItineraryItem.place))
+            .order_by(Itinerary.updated_at.desc())
+        ).all())
 
     def create(self, user: User, payload: ItineraryCreate) -> Itinerary:
         data = payload.model_dump(exclude={"items"})
@@ -38,7 +43,11 @@ class ItineraryService:
         return self.get_for_user_or_public(itinerary.id, user)
 
     def get_for_user_or_public(self, itinerary_id: int, user: User | None = None) -> Itinerary:
-        itinerary = self.db.scalar(select(Itinerary).where(Itinerary.id == itinerary_id).options(selectinload(Itinerary.items).selectinload(ItineraryItem.place)))
+        itinerary = self.db.scalar(
+            select(Itinerary)
+            .where(Itinerary.id == itinerary_id)
+            .options(selectinload(Itinerary.items).selectinload(ItineraryItem.place))
+        )
         if not itinerary:
             raise HTTPException(status_code=404, detail="Itinerary not found.")
         if itinerary.visibility == "private" and (not user or itinerary.user_id != user.id):
@@ -79,6 +88,8 @@ class ItineraryService:
         item = self.db.get(ItineraryItem, item_id)
         if not item or item.itinerary_id != itinerary_id:
             raise HTTPException(status_code=404, detail="Itinerary item not found.")
+        if payload.place_id and not self.db.get(Place, payload.place_id):
+            raise HTTPException(status_code=404, detail="Place not found.")
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(item, key, value)
         self.db.add(item)
@@ -117,21 +128,40 @@ class ItineraryService:
         return self.get_owned(itinerary_id, user)
 
     def get_shared(self, share_slug: str) -> Itinerary:
-        itinerary = self.db.scalar(select(Itinerary).where(Itinerary.share_slug == share_slug).options(selectinload(Itinerary.items).selectinload(ItineraryItem.place)))
+        itinerary = self.db.scalar(
+            select(Itinerary)
+            .where(Itinerary.share_slug == share_slug)
+            .options(selectinload(Itinerary.items).selectinload(ItineraryItem.place))
+        )
         if not itinerary or itinerary.visibility not in {"shared", "public"}:
             raise HTTPException(status_code=404, detail="Shared itinerary not found.")
         return itinerary
 
     def generate_ai(self, request: AiItineraryGenerateRequest) -> AiItineraryResponse:
-        places = list(self.db.scalars(select(Place).where(Place.status.in_(["active", "published"])).order_by(Place.rating_avg.desc()).limit(100)).all())
+        places = list(self.db.scalars(
+            select(Place)
+            .where(Place.status.in_(["active", "published"]))
+            .order_by(Place.rating_avg.desc())
+            .limit(100)
+        ).all())
         if request.interests:
             interests = [item.lower() for item in request.interests]
-            ranked = [place for place in places if any(keyword in f"{place.name} {place.category} {' '.join(place.tags or [])}".lower() for keyword in interests)]
+            ranked = [
+                place for place in places
+                if any(keyword in f"{place.name} {place.category} {' '.join(place.tags or [])}".lower() for keyword in interests)
+            ]
             places = ranked or places
-        slots = [("08:00", "Ăn sáng và chuẩn bị di chuyển"), ("09:30", "Khám phá điểm chính"), ("12:00", "Ăn trưa địa phương"), ("14:00", "Tham quan/Check-in"), ("18:30", "Ăn tối và nghỉ ngơi")]
-        days = []
+
+        slots = [
+            ("08:00", "Ăn sáng và chuẩn bị di chuyển"),
+            ("09:30", "Khám phá điểm chính"),
+            ("12:00", "Ăn trưa địa phương"),
+            ("14:00", "Tham quan/Check-in"),
+            ("18:30", "Ăn tối và nghỉ ngơi"),
+        ]
+        days: list[AiItineraryDay] = []
         for day in range(1, request.days + 1):
-            items = []
+            items: list[AiItineraryItem] = []
             for index, (time, fallback_title) in enumerate(slots):
                 place = places[((day - 1) * 2 + index) % len(places)] if places and index in {1, 3} else None
                 items.append(AiItineraryItem(
@@ -144,7 +174,12 @@ class ItineraryService:
                     transport_note="Ưu tiên taxi/xe máy tùy nhóm; kiểm tra thời tiết trước khi đi.",
                     duration_minutes=120 if place else 60,
                 ))
-            days.append(AiItineraryDay(day_number=day, summary=f"Ngày {day}: cân bằng trải nghiệm, ăn uống và nghỉ ngơi.", items=items))
+            days.append(AiItineraryDay(
+                day_number=day,
+                summary=f"Ngày {day}: cân bằng trải nghiệm, ăn uống và nghỉ ngơi.",
+                items=items,
+            ))
+
         return AiItineraryResponse(
             title=f"Lịch trình Quảng Bình {request.days} ngày",
             description="Lịch trình AI fallback dựa trên địa điểm, tags, rating và nhu cầu đã chọn.",

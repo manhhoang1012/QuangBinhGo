@@ -1,6 +1,6 @@
 from datetime import date, time
 
-from sqlalchemy import Boolean, Date, ForeignKey, JSON, Numeric, String, Text, Time, UniqueConstraint
+from sqlalchemy import Boolean, Date, ForeignKey, JSON, Numeric, String, Text, Time
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -30,7 +30,6 @@ class Itinerary(TimestampMixin, Base):
 
 class ItineraryItem(TimestampMixin, Base):
     __tablename__ = "itinerary_items"
-    __table_args__ = (UniqueConstraint("itinerary_id", "day_number", "order_index", name="uq_itinerary_item_order"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     itinerary_id: Mapped[int] = mapped_column(ForeignKey("itineraries.id", ondelete="CASCADE"), index=True, nullable=False)

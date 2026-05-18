@@ -15,6 +15,9 @@ import { AiSearchPage } from "@/pages/AiSearchPage";
 import { CommunityFeedPage } from "@/pages/CommunityFeedPage";
 import { CreatePostPage } from "@/pages/CreatePostPage";
 import { HomePage } from "@/pages/HomePage";
+import { ItinerariesPage } from "@/pages/ItinerariesPage";
+import { ItineraryDetailPage } from "@/pages/ItineraryDetailPage";
+import { ItineraryEditPage } from "@/pages/ItineraryEditPage";
 import { LoginRegisterPage } from "@/pages/LoginRegisterPage";
 import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
 import { MyPostsPage } from "@/pages/MyPostsPage";
@@ -123,6 +126,30 @@ const router = createBrowserRouter([
       {
         path: "ai/itinerary",
         element: <AiItineraryPage />,
+      },
+      {
+        path: "ai-itinerary",
+        element: <AiItineraryPage />,
+      },
+      {
+        path: "itineraries",
+        element: <ItinerariesPage />,
+      },
+      {
+        path: "itineraries/new",
+        element: <ItineraryEditPage />,
+      },
+      {
+        path: "itineraries/:id",
+        element: <ItineraryDetailPage />,
+      },
+      {
+        path: "itineraries/:id/edit",
+        element: <ItineraryEditPage />,
+      },
+      {
+        path: "itineraries/shared/:shareSlug",
+        element: <ItineraryDetailPage shared />,
       },
       {
         path: "login",
