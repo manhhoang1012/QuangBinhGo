@@ -23,6 +23,7 @@ from app.schemas.review_post import (
     ReviewPostUpdate,
 )
 from app.services.embedding_service import EmbeddingService
+from app.services.notification_service import NotificationService
 from app.services.vector_search_service import VectorSearchService
 
 
@@ -82,6 +83,8 @@ class ReviewPostService:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You do not have permission to delete this post.",
             )
+        if post.user_id != current_user.id:
+            self._safe_notify(lambda service: service.create_post_moderation_notification(post=post, actor=current_user, hidden=False))
         self.review_post_repository.delete_post(post)
 
     def get_feed(
@@ -132,9 +135,10 @@ class ReviewPostService:
         return self._rows_to_reads(rows)
 
     def like_post(self, *, post_id: int, current_user: User) -> PostInteractionResponse:
-        self._get_existing_post(post_id)
+        post = self._get_existing_post(post_id)
         if not self.review_post_repository.get_like(post_id=post_id, user_id=current_user.id):
             self.review_post_repository.add_like(post_id=post_id, user_id=current_user.id)
+            self._safe_notify(lambda service: service.create_post_like_notification(post=post, actor=current_user))
         return PostInteractionResponse(post_id=post_id, liked=True, likes_count=self.review_post_repository.count_likes(post_id))
 
     def unlike_post(self, *, post_id: int, current_user: User) -> PostInteractionResponse:
@@ -164,18 +168,23 @@ class ReviewPostService:
         return PostInteractionResponse(post_id=post_id, hidden=True)
 
     def comment_post(self, *, post_id: int, current_user: User, comment_create: CommentCreate) -> PostComment:
-        self._get_existing_post(post_id)
+        post = self._get_existing_post(post_id)
         self._ensure_comment_is_safe(comment_create.content)
-        return self.review_post_repository.create_comment(post_id=post_id, user_id=current_user.id, comment_create=comment_create)
+        comment = self.review_post_repository.create_comment(post_id=post_id, user_id=current_user.id, comment_create=comment_create)
+        self._safe_notify(lambda service: service.create_post_comment_notification(post=post, comment=comment, actor=current_user))
+        return comment
 
     def reply_comment(self, *, post_id: int, comment_id: int, current_user: User, comment_create: CommentCreate) -> PostComment:
+        post = self._get_existing_post(post_id)
         parent = self.review_post_repository.get_comment(comment_id)
         if not parent or parent.post_id != post_id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found.")
         if parent.status != "visible":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot reply to this comment.")
         self._ensure_comment_is_safe(comment_create.content)
-        return self.review_post_repository.create_comment(post_id=post_id, user_id=current_user.id, comment_create=comment_create, parent_comment_id=comment_id)
+        reply = self.review_post_repository.create_comment(post_id=post_id, user_id=current_user.id, comment_create=comment_create, parent_comment_id=comment_id)
+        self._safe_notify(lambda service: service.create_comment_reply_notification(post=post, parent_comment=parent, reply=reply, actor=current_user))
+        return reply
 
     def update_comment(self, *, post_id: int, comment_id: int, current_user: User, comment_update: CommentUpdate) -> PostComment:
         self._get_existing_post(post_id)
@@ -231,6 +240,8 @@ class ReviewPostService:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot like this comment.")
         if not self.review_post_repository.get_comment_like(comment_id=comment_id, user_id=current_user.id):
             self.review_post_repository.add_comment_like(comment_id=comment_id, user_id=current_user.id)
+            post = self.review_post_repository.get(comment.post_id)
+            self._safe_notify(lambda service: service.create_comment_like_notification(post=post, comment=comment, actor=current_user))
         count = self.review_post_repository.count_comment_likes(comment_id)
         return CommentInteractionResponse(comment_id=comment_id, liked=True, liked_by_me=True, like_count=count, likes_count=count)
 
@@ -278,6 +289,7 @@ class ReviewPostService:
         if existing:
             return {"following": True, "changed": False, "message": "Already following."}
         self.review_post_repository.add_follow(follower_id=current_user.id, following_id=target_user.id)
+        self._safe_notify(lambda service: service.create_user_follow_notification(target_user=target_user, actor=current_user))
         return {"following": True, "changed": True, "message": "Followed successfully."}
 
     def unfollow_user(self, *, current_user: User, target_user: User) -> dict[str, bool]:
@@ -383,6 +395,12 @@ class ReviewPostService:
         lowered = text.lower()
         if any(keyword in lowered for keyword in self.SPAM_KEYWORDS):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bình luận có dấu hiệu spam. Vui lòng chỉnh sửa nội dung.")
+
+    def _safe_notify(self, callback) -> None:
+        try:
+            callback(NotificationService(self.review_post_repository.db))
+        except Exception:
+            return
 
     def _index_post(self, post) -> None:
         if not self.embedding_service or not self.vector_search_service or post.is_draft:

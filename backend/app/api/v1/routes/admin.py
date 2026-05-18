@@ -15,6 +15,7 @@ from app.schemas.review_post import AdminCommentRead, AdminPlaceReviewRead, Admi
 from app.schemas.site_settings import SettingsUploadResponse, SiteSettingsPayload
 from app.schemas.user import AdminUserRead, MessageResponse, UserRoleUpdate, UserStatusUpdate
 from app.services.place_service import PlaceService
+from app.services.notification_service import NotificationService
 from app.services.review_post_service import ReviewPostService
 from app.services.settings_service import SettingsService
 from app.services.upload_service import UploadService
@@ -222,6 +223,11 @@ def admin_update_post_status(post_id: int, payload: PostStatusUpdate, _: User = 
     post.status = payload.status
     db.add(post)
     db.commit()
+    if payload.status != "visible" and post.user_id != _.id:
+        try:
+            NotificationService(db).create_post_moderation_notification(post=post, actor=_, hidden=True)
+        except Exception:
+            pass
     return admin_get_post(post_id, _, db)
 
 
@@ -230,6 +236,11 @@ def admin_delete_post(post_id: int, _: User = Depends(require_admin), db: Sessio
     post = ReviewPostRepository(db).get(post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found.")
+    if post.user_id != _.id:
+        try:
+            NotificationService(db).create_post_moderation_notification(post=post, actor=_, hidden=False)
+        except Exception:
+            pass
     db.delete(post)
     db.commit()
     return MessageResponse(message="Post deleted successfully.")

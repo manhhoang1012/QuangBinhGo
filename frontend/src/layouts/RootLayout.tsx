@@ -3,6 +3,7 @@ import { type ReactNode } from "react";
 import { Compass, Facebook, LogOut, Menu, Search, Sparkles, UserRound, Youtube } from "lucide-react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { type User } from "@/services/api";
 import { getStoredUser, logout } from "@/services/authApi";
@@ -112,6 +113,9 @@ export function RootLayout() {
               <Link to="/login">
                 <Button>Sign in</Button>
               </Link>
+            )}
+            {user && (
+              <NotificationBell user={user} />
             )}
             {user && (
               <div className="relative">

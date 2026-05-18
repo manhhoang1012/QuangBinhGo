@@ -27,6 +27,7 @@ import { MapPage } from "@/pages/MapPage";
 import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
 import { MyPostsPage } from "@/pages/MyPostsPage";
 import { MyReviewsPage } from "@/pages/MyReviewsPage";
+import { NotificationsPage } from "@/pages/NotificationsPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { OAuthCallbackPage } from "@/pages/OAuthCallbackPage";
 import { PlaceDetailPage } from "@/pages/PlaceDetailPage";
@@ -103,6 +104,10 @@ const router = createBrowserRouter([
       {
         path: "profile/change-password",
         element: <ProfilePage />,
+      },
+      {
+        path: "notifications",
+        element: <NotificationsPage />,
       },
       {
         path: "u/:username",
