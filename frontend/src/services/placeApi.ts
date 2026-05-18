@@ -5,6 +5,7 @@ export interface GetPlacesParams {
   q?: string;
   category?: string;
   tags?: string;
+  region?: string;
   min_rating?: number;
   max_price?: number;
   price_type?: string;
@@ -39,6 +40,37 @@ export async function semanticSearchPlaces(query: string) {
 
 export async function getNearbyPlaces(lat: number, lng: number, radiusKm = 50) {
   return getPlaces({ near_lat: lat, near_lng: lng, radius_km: radiusKm, sort: "distance_asc" });
+}
+
+export interface MapPlace {
+  id: number;
+  name: string;
+  slug?: string | null;
+  latitude: string | number;
+  longitude: string | number;
+  address: string;
+  cover_image?: string | null;
+  category: string;
+  region?: string | null;
+  rating_avg: string | number;
+  distance_km?: number | null;
+}
+
+export interface RouteSuggestion {
+  ordered_places: MapPlace[];
+  total_distance_km: number;
+  estimated_duration_text: string;
+  google_maps_url: string;
+}
+
+export async function getMapPlaces(params: Pick<GetPlacesParams, "category" | "tags" | "region" | "near_lat" | "near_lng" | "radius_km"> = {}) {
+  const response = await api.get<MapPlace[]>("/places/map", { params });
+  return response.data;
+}
+
+export async function getRouteSuggestions(data: { start_lat: number; start_lng: number; place_ids: number[]; travel_mode: "driving" | "motorbike" | "walking" }) {
+  const response = await api.post<RouteSuggestion>("/places/route-suggestions", data);
+  return response.data;
 }
 
 export interface PlaceReviewList {

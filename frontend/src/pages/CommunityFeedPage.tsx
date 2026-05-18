@@ -23,12 +23,18 @@ export function CommunityFeedPage({ initialFeedType = "latest" }: { initialFeedT
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const postsLengthRef = useRef(0);
+
+  useEffect(() => {
+    postsLengthRef.current = posts.length;
+  }, [posts.length]);
 
   const loadFeed = useCallback(async (reset = false) => {
-    reset ? setIsLoading(true) : setIsLoadingMore(true);
+    if (reset) setIsLoading(true);
+    else setIsLoadingMore(true);
     setError(null);
     try {
-      const next = await getCommunityFeed(feedType, { skip: reset ? 0 : posts.length, limit: pageSize });
+      const next = await getCommunityFeed(feedType, { skip: reset ? 0 : postsLengthRef.current, limit: pageSize });
       setPosts((current) => (reset ? next : [...current, ...next]));
       setHasMore(next.length === pageSize);
     } catch {
@@ -37,7 +43,7 @@ export function CommunityFeedPage({ initialFeedType = "latest" }: { initialFeedT
       setIsLoading(false);
       setIsLoadingMore(false);
     }
-  }, [feedType, posts.length]);
+  }, [feedType]);
 
   useEffect(() => {
     const state = location.state as { notice?: string } | null;
@@ -49,7 +55,7 @@ export function CommunityFeedPage({ initialFeedType = "latest" }: { initialFeedT
 
   useEffect(() => {
     void loadFeed(true);
-  }, [feedType]);
+  }, [loadFeed]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;

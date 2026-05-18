@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import L from "leaflet";
-import { ExternalLink, LocateFixed, MapPin } from "lucide-react";
-import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import { ExternalLink, MapPin } from "lucide-react";
+import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
+import { UserLocationButton } from "@/components/map/UserLocationButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { buildGoogleMapsDirectionsUrl, haversineKm, type LatLng } from "@/lib/mapUtils";
 
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
@@ -23,14 +25,8 @@ interface PlaceLocationMapProps {
   placeName: string;
 }
 
-interface UserLocation {
-  lat: number;
-  lng: number;
-}
-
 export function PlaceLocationMap({ address, latitude, longitude, placeName }: PlaceLocationMapProps) {
-  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
-  const [isLocating, setIsLocating] = useState(false);
+  const [userLocation, setUserLocation] = useState<LatLng | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
 
   const placeLocation = useMemo(() => {
@@ -41,35 +37,10 @@ export function PlaceLocationMap({ address, latitude, longitude, placeName }: Pl
 
   const directionsUrl = useMemo(() => {
     if (!placeLocation) return "#";
-    const destination = `${placeLocation.lat},${placeLocation.lng}`;
-    if (userLocation) {
-      return `https://www.google.com/maps/dir/?api=1&origin=${userLocation.lat},${userLocation.lng}&destination=${destination}`;
-    }
-    return `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
+    return buildGoogleMapsDirectionsUrl({ origin: userLocation, destination: placeLocation });
   }, [placeLocation, userLocation]);
 
-  const locateUser = () => {
-    setLocationError(null);
-    if (!navigator.geolocation) {
-      setLocationError("Trình duyệt không hỗ trợ định vị.");
-      return;
-    }
-
-    setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
-        setIsLocating(false);
-      },
-      () => {
-        setLocationError("Không thể lấy vị trí hiện tại. Vui lòng kiểm tra quyền định vị của trình duyệt.");
-        setIsLocating(false);
-      },
-    );
-  };
+  const distanceKm = placeLocation && userLocation ? haversineKm(userLocation, placeLocation) : null;
 
   if (!placeLocation) {
     return (
@@ -95,6 +66,7 @@ export function PlaceLocationMap({ address, latitude, longitude, placeName }: Pl
         <p className="flex items-start gap-2 text-sm text-muted-foreground">
           <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           {address}
+          {distanceKm !== null ? <span className="font-medium text-foreground">· {distanceKm.toFixed(1)} km từ bạn</span> : null}
         </p>
 
         <div className="overflow-hidden rounded-lg border">
@@ -116,17 +88,13 @@ export function PlaceLocationMap({ address, latitude, longitude, placeName }: Pl
                 <Popup>Vị trí của bạn</Popup>
               </Marker>
             )}
-            <FitMapBounds placeLocation={placeLocation} userLocation={userLocation} />
           </MapContainer>
         </div>
 
         {locationError && <p className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{locationError}</p>}
 
         <div className="flex flex-wrap gap-2">
-          <Button className="gap-2" disabled={isLocating} onClick={locateUser} type="button" variant="outline">
-            <LocateFixed className="h-4 w-4" />
-            {isLocating ? "Đang định vị..." : "Định vị của tôi"}
-          </Button>
+          <UserLocationButton onLocated={(location) => { setUserLocation(location); setLocationError(null); }} onError={setLocationError} />
           <a href={directionsUrl} rel="noreferrer" target="_blank">
             <Button className="gap-2" type="button">
               <ExternalLink className="h-4 w-4" />
@@ -137,30 +105,4 @@ export function PlaceLocationMap({ address, latitude, longitude, placeName }: Pl
       </CardContent>
     </Card>
   );
-}
-
-function FitMapBounds({
-  placeLocation,
-  userLocation,
-}: {
-  placeLocation: UserLocation;
-  userLocation: UserLocation | null;
-}) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (userLocation) {
-      map.fitBounds(
-        [
-          [placeLocation.lat, placeLocation.lng],
-          [userLocation.lat, userLocation.lng],
-        ],
-        { padding: [40, 40] },
-      );
-    } else {
-      map.setView(placeLocation, 15);
-    }
-  }, [map, placeLocation, userLocation]);
-
-  return null;
 }

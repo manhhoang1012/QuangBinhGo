@@ -17,13 +17,19 @@ export function SocialFilteredFeedPage({ mode }: { mode: "hashtag" | "place" }) 
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const postsLengthRef = useRef(0);
+
+  useEffect(() => {
+    postsLengthRef.current = posts.length;
+  }, [posts.length]);
 
   const load = useCallback(async (reset = false) => {
     if (!key) return;
-    reset ? setIsLoading(true) : setIsLoadingMore(true);
+    if (reset) setIsLoading(true);
+    else setIsLoadingMore(true);
     setError(null);
     try {
-      const skip = reset ? 0 : posts.length;
+      const skip = reset ? 0 : postsLengthRef.current;
       const next = mode === "hashtag"
         ? await getHashtagFeed(key, { skip, limit: pageSize })
         : await getPlaceFeed(Number(key), { skip, limit: pageSize });
@@ -35,11 +41,11 @@ export function SocialFilteredFeedPage({ mode }: { mode: "hashtag" | "place" }) 
       setIsLoading(false);
       setIsLoadingMore(false);
     }
-  }, [key, mode, posts.length]);
+  }, [key, mode]);
 
   useEffect(() => {
     void load(true);
-  }, [key, mode]);
+  }, [load]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;

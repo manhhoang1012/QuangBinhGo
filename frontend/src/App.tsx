@@ -19,6 +19,7 @@ import { ItinerariesPage } from "@/pages/ItinerariesPage";
 import { ItineraryDetailPage } from "@/pages/ItineraryDetailPage";
 import { ItineraryEditPage } from "@/pages/ItineraryEditPage";
 import { LoginRegisterPage } from "@/pages/LoginRegisterPage";
+import { MapPage } from "@/pages/MapPage";
 import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
 import { MyPostsPage } from "@/pages/MyPostsPage";
 import { MyReviewsPage } from "@/pages/MyReviewsPage";
@@ -46,6 +47,14 @@ const router = createBrowserRouter([
       {
         path: "places",
         element: <PlacesListPage />,
+      },
+      {
+        path: "map",
+        element: <MapPage />,
+      },
+      {
+        path: "places/map",
+        element: <MapPage />,
       },
       {
         path: "places/:placeId",

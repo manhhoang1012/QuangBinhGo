@@ -68,6 +68,7 @@ export interface Place {
   slug?: string | null;
   description: string;
   category: string;
+  region?: string | null;
   tags?: string[];
   status?: string;
   address: string;

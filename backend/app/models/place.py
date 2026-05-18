@@ -15,6 +15,7 @@ class Place(TimestampMixin, Base):
     slug: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     category: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    region: Mapped[str | None] = mapped_column(String(100), index=True, nullable=True)
     tags: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="active", nullable=False)
     address: Mapped[str] = mapped_column(String(500), nullable=False)

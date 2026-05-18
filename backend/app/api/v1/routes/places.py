@@ -13,7 +13,7 @@ from app.core.config import settings
 from app.models.review_post import PlaceReview, PlaceReviewHelpful, PlaceReviewReport
 from app.models.user import User
 from app.repositories.place_repository import PlaceRepository
-from app.schemas.place import PlaceCreate, PlaceDetailRead, PlaceRead, PlaceUpdate
+from app.schemas.place import PlaceCreate, PlaceDetailRead, PlaceMapRead, PlaceRead, PlaceUpdate, RouteSuggestionRead, RouteSuggestionRequest
 from app.schemas.review_post import PlaceReviewCreate, PlaceReviewListRead, PlaceReviewRead, PlaceReviewReportCreate, PlaceReviewReportRead, PlaceReviewUpdate, RatingSummary
 from app.services.place_service import PlaceService
 
@@ -36,6 +36,14 @@ def haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     dlng = radians(lng2 - lng1)
     a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng / 2) ** 2
     return 2 * radius * asin(sqrt(a))
+
+
+def safe_float(value: object) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number == number else None
 
 
 def get_review_stats(db: Session, place_ids: list[int]) -> dict[int, tuple[float, int]]:
@@ -84,6 +92,35 @@ def build_place_read(
     data.cover_image = place.cover_image
     data.distance_km = round(distance_km, 2) if distance_km is not None else None
     return data
+
+
+def build_place_map_read(place: Place, distance_km: float | None = None) -> PlaceMapRead:
+    return PlaceMapRead(
+        id=place.id,
+        name=place.name,
+        slug=place.slug,
+        latitude=place.latitude,
+        longitude=place.longitude,
+        address=place.address,
+        cover_image=place.cover_image,
+        category=place.category,
+        region=place.region,
+        rating_avg=place.rating_avg,
+        distance_km=round(distance_km, 2) if distance_km is not None else None,
+    )
+
+
+def build_google_maps_url(origin: tuple[float, float], places: list[Place]) -> str:
+    destination = places[-1]
+    params = [
+        "api=1",
+        f"origin={origin[0]},{origin[1]}",
+        f"destination={safe_float(destination.latitude)},{safe_float(destination.longitude)}",
+    ]
+    waypoints = [f"{safe_float(place.latitude)},{safe_float(place.longitude)}" for place in places[:-1]]
+    if waypoints:
+        params.append(f"waypoints={'|'.join(waypoints)}")
+    return "https://www.google.com/maps/dir/?" + "&".join(params)
 
 
 def get_public_place_or_404(db: Session, place_id: int) -> Place:
@@ -137,6 +174,7 @@ def list_places(
     q: str | None = Query(default=None, min_length=1),
     category: str | None = Query(default=None, min_length=1),
     tags: str | None = Query(default=None),
+    region: str | None = Query(default=None, min_length=1),
     min_rating: float | None = Query(default=None, ge=0, le=5),
     max_price: float | None = Query(default=None, ge=0),
     price_type: str | None = Query(default=None),
@@ -153,6 +191,8 @@ def list_places(
     statement = select(Place).where(Place.status.in_(PUBLIC_STATUSES))
     if category:
         statement = statement.where(Place.category == category)
+    if region:
+        statement = statement.where(func.lower(Place.region) == region.strip().lower())
     if keyword:
         pattern = f"%{keyword}%"
         statement = statement.where(or_(Place.name.ilike(pattern), Place.description.ilike(pattern), Place.address.ilike(pattern)))
@@ -171,7 +211,11 @@ def list_places(
     distances: dict[int, float] = {}
     if near_lat is not None and near_lng is not None:
         for place in places:
-            distance = haversine_km(near_lat, near_lng, float(place.latitude), float(place.longitude))
+            place_lat = safe_float(place.latitude)
+            place_lng = safe_float(place.longitude)
+            if place_lat is None or place_lng is None:
+                continue
+            distance = haversine_km(near_lat, near_lng, place_lat, place_lng)
             if distance <= radius_km:
                 distances[place.id] = distance
         places = [place for place in places if place.id in distances]
@@ -213,6 +257,79 @@ def semantic_search_places(q: str = Query(..., min_length=1), limit: int = Query
     ).all()
     review_stats = get_review_stats(db, [place.id for place in places])
     return [build_place_read(place, review_stats=review_stats) for place in places]
+
+
+@router.get("/map", response_model=list[PlaceMapRead])
+def map_places(
+    category: str | None = Query(default=None, min_length=1),
+    tags: str | None = Query(default=None),
+    region: str | None = Query(default=None, min_length=1),
+    near_lat: float | None = Query(default=None, ge=-90, le=90),
+    near_lng: float | None = Query(default=None, ge=-180, le=180),
+    radius_km: float | None = Query(default=None, ge=1, le=500),
+    db: Session = Depends(get_db),
+) -> list[PlaceMapRead]:
+    statement = select(Place).where(Place.status.in_(PUBLIC_STATUSES), Place.latitude.is_not(None), Place.longitude.is_not(None))
+    if category:
+        statement = statement.where(Place.category == category)
+    if region:
+        statement = statement.where(func.lower(Place.region) == region.strip().lower())
+    places = list(db.scalars(statement).all())
+    wanted_tags = parse_requested_tags(tags)
+    if wanted_tags:
+        places = [place for place in places if normalize_place_tags(place.tags).intersection(wanted_tags)]
+
+    distances: dict[int, float] = {}
+    if near_lat is not None and near_lng is not None:
+        filtered: list[Place] = []
+        for place in places:
+            place_lat = safe_float(place.latitude)
+            place_lng = safe_float(place.longitude)
+            if place_lat is None or place_lng is None:
+                continue
+            distance = haversine_km(near_lat, near_lng, place_lat, place_lng)
+            if radius_km is None or distance <= radius_km:
+                distances[place.id] = distance
+                filtered.append(place)
+        places = filtered
+        places.sort(key=lambda place: distances.get(place.id, 0))
+    return [build_place_map_read(place, distances.get(place.id)) for place in places[:500]]
+
+
+@router.post("/route-suggestions", response_model=RouteSuggestionRead)
+def route_suggestions(payload: RouteSuggestionRequest, db: Session = Depends(get_db)) -> RouteSuggestionRead:
+    unique_ids = list(dict.fromkeys(payload.place_ids))
+    places = list(db.scalars(select(Place).where(Place.id.in_(unique_ids), Place.status.in_(PUBLIC_STATUSES))).all())
+    place_by_id = {place.id: place for place in places}
+    remaining = [
+        place_by_id[place_id]
+        for place_id in unique_ids
+        if place_id in place_by_id and safe_float(place_by_id[place_id].latitude) is not None and safe_float(place_by_id[place_id].longitude) is not None
+    ]
+    if not remaining:
+        raise HTTPException(status_code=404, detail="No routable places found.")
+
+    current = (payload.start_lat, payload.start_lng)
+    ordered: list[Place] = []
+    total_distance = 0.0
+    while remaining:
+        next_place = min(remaining, key=lambda place: haversine_km(current[0], current[1], safe_float(place.latitude) or 0, safe_float(place.longitude) or 0))
+        distance = haversine_km(current[0], current[1], safe_float(next_place.latitude) or 0, safe_float(next_place.longitude) or 0)
+        total_distance += distance
+        ordered.append(next_place)
+        remaining.remove(next_place)
+        current = (safe_float(next_place.latitude) or current[0], safe_float(next_place.longitude) or current[1])
+
+    speed = {"driving": 40, "motorbike": 35, "walking": 5}[payload.travel_mode]
+    minutes = round((total_distance / speed) * 60) if speed else 0
+    hours, remaining_minutes = divmod(minutes, 60)
+    duration_text = f"{hours} giờ {remaining_minutes} phút" if hours else f"{remaining_minutes} phút"
+    return RouteSuggestionRead(
+        ordered_places=[build_place_map_read(place) for place in ordered],
+        total_distance_km=round(total_distance, 2),
+        estimated_duration_text=duration_text,
+        google_maps_url=build_google_maps_url((payload.start_lat, payload.start_lng), ordered),
+    )
 
 
 @router.post("/{place_id}/reviews/uploads")

@@ -52,6 +52,7 @@ def ensure_admin_content_columns() -> None:
         "places": {
             "status": "VARCHAR(30) DEFAULT 'active' NOT NULL",
             "slug": "VARCHAR(255)",
+            "region": "VARCHAR(100)",
             "tags": "JSON",
             "videos": "JSON",
             "opening_hours": "VARCHAR(255)",

@@ -9,6 +9,7 @@ class PlaceBase(BaseModel):
     slug: str | None = Field(default=None, max_length=255)
     description: str = Field(min_length=1)
     category: str = Field(min_length=1, max_length=100)
+    region: str | None = Field(default=None, max_length=100)
     tags: list[str] = Field(default_factory=list, max_length=20)
     status: str = Field(default="active", min_length=1, max_length=30)
     address: str = Field(min_length=1, max_length=500)
@@ -37,6 +38,7 @@ class PlaceUpdate(BaseModel):
     slug: str | None = Field(default=None, max_length=255)
     description: str | None = Field(default=None, min_length=1)
     category: str | None = Field(default=None, min_length=1, max_length=100)
+    region: str | None = Field(default=None, max_length=100)
     tags: list[str] | None = Field(default=None, max_length=20)
     address: str | None = Field(default=None, min_length=1, max_length=500)
     latitude: Decimal | None = Field(default=None, ge=-90, le=90)
@@ -68,6 +70,36 @@ class PlaceRead(PlaceBase):
 
 class PlaceDetailRead(PlaceRead):
     related_places: list[PlaceRead] = Field(default_factory=list)
+
+
+class PlaceMapRead(BaseModel):
+    id: int
+    name: str
+    slug: str | None = None
+    latitude: Decimal
+    longitude: Decimal
+    address: str
+    cover_image: str | None = None
+    category: str
+    region: str | None = None
+    rating_avg: Decimal
+    distance_km: float | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class RouteSuggestionRequest(BaseModel):
+    start_lat: float = Field(ge=-90, le=90)
+    start_lng: float = Field(ge=-180, le=180)
+    place_ids: list[int] = Field(min_length=1, max_length=25)
+    travel_mode: str = Field(default="driving", pattern="^(driving|motorbike|walking)$")
+
+
+class RouteSuggestionRead(BaseModel):
+    ordered_places: list[PlaceMapRead]
+    total_distance_km: float
+    estimated_duration_text: str
+    google_maps_url: str
 
 
 class CategoryBase(BaseModel):
