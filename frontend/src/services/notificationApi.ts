@@ -1,4 +1,11 @@
-import { api, type User } from "@/services/api";
+import { api } from "@/services/api";
+
+export interface NotificationActor {
+  id: number;
+  username?: string | null;
+  full_name: string;
+  avatar_url?: string | null;
+}
 
 export type NotificationType =
   | "post_like"
@@ -15,7 +22,7 @@ export interface NotificationItem {
   type: NotificationType | string;
   title: string;
   message: string;
-  actor?: User | null;
+  actor?: NotificationActor | null;
   target_type: string;
   target_id?: number | null;
   target_url?: string | null;

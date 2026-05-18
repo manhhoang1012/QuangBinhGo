@@ -30,6 +30,7 @@ class NotificationService:
     ) -> Notification | None:
         if actor_id is not None and actor_id == recipient_id:
             return None
+
         notification = Notification(
             recipient_id=recipient_id,
             actor_id=actor_id,
@@ -108,7 +109,7 @@ class NotificationService:
             message=f"{actor.full_name} đã theo dõi bạn",
             target_type="user",
             target_id=actor.id,
-            target_url=f"/users/{username}",
+            target_url=f"/u/{username}",
         )
 
     def create_post_moderation_notification(self, *, post: ReviewPost, actor: User | None, hidden: bool) -> Notification | None:
@@ -123,7 +124,15 @@ class NotificationService:
             target_url=f"/community/{post.id}" if hidden else None,
         )
 
-    def list_notifications(self, *, user_id: int, page: int = 1, limit: int = 20, unread_only: bool = False, type: str | None = None) -> tuple[list[Notification], int]:
+    def list_notifications(
+        self,
+        *,
+        user_id: int,
+        page: int = 1,
+        limit: int = 20,
+        unread_only: bool = False,
+        type: str | None = None,
+    ) -> tuple[list[Notification], int]:
         statement = select(Notification).where(Notification.recipient_id == user_id, Notification.deleted_at.is_(None))
         count_statement = select(func.count(Notification.id)).where(Notification.recipient_id == user_id, Notification.deleted_at.is_(None))
         if unread_only:
@@ -136,7 +145,16 @@ class NotificationService:
         return list(self.db.scalars(statement).all()), int(self.db.scalar(count_statement) or 0)
 
     def get_unread_count(self, user_id: int) -> int:
-        return int(self.db.scalar(select(func.count(Notification.id)).where(Notification.recipient_id == user_id, Notification.deleted_at.is_(None), Notification.is_read.is_(False))) or 0)
+        return int(
+            self.db.scalar(
+                select(func.count(Notification.id)).where(
+                    Notification.recipient_id == user_id,
+                    Notification.deleted_at.is_(None),
+                    Notification.is_read.is_(False),
+                )
+            )
+            or 0
+        )
 
     def mark_as_read(self, notification_id: int, user_id: int) -> Notification:
         notification = self._get_owned(notification_id, user_id)
@@ -178,11 +196,15 @@ class NotificationService:
         try:
             import anyio
 
-            anyio.from_thread.run(notification_ws_manager.send_to_user, user_id, {
-                "event": "notification:new",
-                "notification": NotificationRead.model_validate(notification).model_dump(mode="json"),
-                "unread_count": self.get_unread_count(user_id),
-            })
+            anyio.from_thread.run(
+                notification_ws_manager.send_to_user,
+                user_id,
+                {
+                    "event": "notification:new",
+                    "notification": NotificationRead.model_validate(notification).model_dump(mode="json"),
+                    "unread_count": self.get_unread_count(user_id),
+                },
+            )
         except Exception:
             return
 
@@ -190,10 +212,14 @@ class NotificationService:
         try:
             import anyio
 
-            anyio.from_thread.run(notification_ws_manager.send_to_user, user_id, {
-                "event": "notification:read",
-                "notification_id": notification_id,
-                "unread_count": self.get_unread_count(user_id),
-            })
+            anyio.from_thread.run(
+                notification_ws_manager.send_to_user,
+                user_id,
+                {
+                    "event": "notification:read",
+                    "notification_id": notification_id,
+                    "unread_count": self.get_unread_count(user_id),
+                },
+            )
         except Exception:
             return

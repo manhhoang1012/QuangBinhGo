@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import AliasChoices, BaseModel, Field
 
-from app.schemas.user import UserRead
+from app.schemas.user import PublicUserRead
 
 
 class NotificationRead(BaseModel):
@@ -11,7 +11,7 @@ class NotificationRead(BaseModel):
     type: str
     title: str
     message: str
-    actor: UserRead | None = None
+    actor: PublicUserRead | None = None
     target_type: str
     target_id: int | None = None
     target_url: str | None = None

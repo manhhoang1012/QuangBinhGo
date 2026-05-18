@@ -52,11 +52,7 @@ export function NotificationBell({ user }: NotificationBellProps) {
       onMessage(payload) {
         if (payload.event === "notification:new" && payload.notification) {
           setItems((current) => [payload.notification!, ...current.filter((item) => item.id !== payload.notification!.id)].slice(0, 8));
-          if (typeof payload.unread_count === "number") {
-            setUnreadCount(payload.unread_count);
-          } else {
-            setUnreadCount((count) => count + 1);
-          }
+          setUnreadCount((count) => (typeof payload.unread_count === "number" ? payload.unread_count : count + 1));
           setToastMessage("Bạn có thông báo mới");
           window.setTimeout(() => setToastMessage(null), 2500);
         }

@@ -49,15 +49,6 @@ def get_unread_count(
     return UnreadCountRead(unread_count=service.get_unread_count(current_user.id))
 
 
-@router.patch("/{notification_id}/read", response_model=NotificationRead)
-def mark_notification_read(
-    notification_id: int,
-    current_user: User = Depends(get_current_user),
-    service: NotificationService = Depends(notification_service),
-) -> NotificationRead:
-    return NotificationRead.model_validate(service.mark_as_read(notification_id, current_user.id))
-
-
 @router.patch("/read-all", response_model=UnreadCountRead)
 def mark_all_notifications_read(
     current_user: User = Depends(get_current_user),
@@ -65,6 +56,15 @@ def mark_all_notifications_read(
 ) -> UnreadCountRead:
     service.mark_all_as_read(current_user.id)
     return UnreadCountRead(unread_count=service.get_unread_count(current_user.id))
+
+
+@router.patch("/{notification_id}/read", response_model=NotificationRead)
+def mark_notification_read(
+    notification_id: int,
+    current_user: User = Depends(get_current_user),
+    service: NotificationService = Depends(notification_service),
+) -> NotificationRead:
+    return NotificationRead.model_validate(service.mark_as_read(notification_id, current_user.id))
 
 
 @router.delete("/{notification_id}", status_code=status.HTTP_204_NO_CONTENT)
