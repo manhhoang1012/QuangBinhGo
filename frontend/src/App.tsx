@@ -25,6 +25,12 @@ import { ItineraryDetailPage } from "@/pages/ItineraryDetailPage";
 import { ItineraryEditPage } from "@/pages/ItineraryEditPage";
 import { LoginRegisterPage } from "@/pages/LoginRegisterPage";
 import { MapPage } from "@/pages/MapPage";
+import { ModerationActionsPage } from "@/pages/ModerationActionsPage";
+import { ModerationCommentsPage } from "@/pages/ModerationCommentsPage";
+import { ModerationDashboardPage } from "@/pages/ModerationDashboardPage";
+import { ModerationPostsPage } from "@/pages/ModerationPostsPage";
+import { ModerationReportsPage } from "@/pages/ModerationReportsPage";
+import { ModerationUserWarningsPage } from "@/pages/ModerationUserWarningsPage";
 import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
 import { MyPostsPage } from "@/pages/MyPostsPage";
 import { MyReviewsPage } from "@/pages/MyReviewsPage";
@@ -219,6 +225,54 @@ const router = createBrowserRouter([
         element: (
           <ProtectedAdminRoute allowedRoles={["admin"]}>
             <AdminDashboardPage />
+          </ProtectedAdminRoute>
+        ),
+      },
+      {
+        path: "moderation",
+        element: (
+          <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
+            <ModerationDashboardPage />
+          </ProtectedAdminRoute>
+        ),
+      },
+      {
+        path: "moderation/reports",
+        element: (
+          <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
+            <ModerationReportsPage />
+          </ProtectedAdminRoute>
+        ),
+      },
+      {
+        path: "moderation/posts",
+        element: (
+          <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
+            <ModerationPostsPage />
+          </ProtectedAdminRoute>
+        ),
+      },
+      {
+        path: "moderation/comments",
+        element: (
+          <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
+            <ModerationCommentsPage />
+          </ProtectedAdminRoute>
+        ),
+      },
+      {
+        path: "moderation/actions",
+        element: (
+          <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
+            <ModerationActionsPage />
+          </ProtectedAdminRoute>
+        ),
+      },
+      {
+        path: "moderation/users/:userId/warnings",
+        element: (
+          <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
+            <ModerationUserWarningsPage />
           </ProtectedAdminRoute>
         ),
       },

@@ -1,4 +1,4 @@
-import { BarChart3, Flag, FolderTree, LayoutDashboard, LogOut, MapPinned, MessageSquare, Settings, Star, Users } from "lucide-react";
+import { BarChart3, Flag, FolderTree, LayoutDashboard, LogOut, MapPinned, MessageSquare, Settings, ShieldCheck, Star, Users } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -7,12 +7,17 @@ import { logout } from "@/services/authApi";
 
 const adminNavItems = [
   { label: "Dashboard", to: "/admin", icon: LayoutDashboard, roles: ["admin"] },
+  { label: "Moderation", to: "/moderation", icon: ShieldCheck, roles: ["moderator", "admin"] },
+  { label: "Reports", to: "/moderation/reports", icon: Flag, roles: ["moderator", "admin"] },
+  { label: "Reported Posts", to: "/moderation/posts", icon: MessageSquare, roles: ["moderator", "admin"] },
+  { label: "Reported Comments", to: "/moderation/comments", icon: MessageSquare, roles: ["moderator", "admin"] },
+  { label: "Actions", to: "/moderation/actions", icon: BarChart3, roles: ["moderator", "admin"] },
   { label: "Users", to: "/admin/users", icon: Users, roles: ["admin"] },
   { label: "Places", to: "/admin/places", icon: MapPinned, roles: ["admin"] },
-  { label: "Posts", to: "/admin/posts", icon: MessageSquare, roles: ["moderator", "admin"] },
-  { label: "Comments", to: "/admin/comments", icon: MessageSquare, roles: ["moderator", "admin"] },
-  { label: "Reviews", to: "/admin/reviews", icon: Star, roles: ["moderator", "admin"] },
-  { label: "Reports", to: "/admin/reports", icon: Flag, roles: ["moderator", "admin"] },
+  { label: "Posts", to: "/admin/posts", icon: MessageSquare, roles: ["admin"] },
+  { label: "Comments", to: "/admin/comments", icon: MessageSquare, roles: ["admin"] },
+  { label: "Reviews", to: "/admin/reviews", icon: Star, roles: ["admin"] },
+  { label: "Admin Reports", to: "/admin/reports", icon: Flag, roles: ["admin"] },
   { label: "Categories", to: "/admin/categories", icon: FolderTree, roles: ["admin"] },
   { label: "Settings", to: "/admin/settings", icon: Settings, roles: ["admin"] },
 ];
