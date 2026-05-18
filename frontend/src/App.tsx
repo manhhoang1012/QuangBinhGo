@@ -10,7 +10,11 @@ import { AdminPostsPage } from "@/pages/AdminPostsPage";
 import { AdminReviewsPage } from "@/pages/AdminReviewsPage";
 import { AdminSettingsPage } from "@/pages/AdminSettingsPage";
 import { AdminUsersPage } from "@/pages/AdminUsersPage";
+import { AiHubPage } from "@/pages/AiHubPage";
 import { AiItineraryPage } from "@/pages/AiItineraryPage";
+import { AiChatPage } from "@/pages/AiChatPage";
+import { AiContentToolsPage } from "@/pages/AiContentToolsPage";
+import { AiRecommendationsPage } from "@/pages/AiRecommendationsPage";
 import { AiSearchPage } from "@/pages/AiSearchPage";
 import { CommunityFeedPage } from "@/pages/CommunityFeedPage";
 import { CreatePostPage } from "@/pages/CreatePostPage";
@@ -129,8 +133,32 @@ const router = createBrowserRouter([
         element: <MyReviewsPage />,
       },
       {
+        path: "ai",
+        element: <AiHubPage />,
+      },
+      {
         path: "ai/search",
         element: <AiSearchPage />,
+      },
+      {
+        path: "ai/recommendations",
+        element: <AiRecommendationsPage />,
+      },
+      {
+        path: "ai/chat",
+        element: <AiChatPage />,
+      },
+      {
+        path: "ai/chatbot",
+        element: <AiChatPage />,
+      },
+      {
+        path: "ai/tools",
+        element: <AiContentToolsPage />,
+      },
+      {
+        path: "ai/content-tools",
+        element: <AiContentToolsPage />,
       },
       {
         path: "ai/itinerary",

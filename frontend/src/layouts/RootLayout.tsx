@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { type ReactNode } from "react";
-import { Compass, Facebook, LogOut, Menu, Search, UserRound, Youtube } from "lucide-react";
+import { Compass, Facebook, LogOut, Menu, Search, Sparkles, UserRound, Youtube } from "lucide-react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -14,13 +14,23 @@ const navItems = [
   { label: "Places", to: "/places" },
   { label: "Community", to: "/community" },
   { label: "Saved", to: "/saved" },
-  { label: "AI", to: "/ai/itinerary" },
+  { label: "AI Du lịch", to: "/ai" },
+];
+
+const aiMenuItems = [
+  { label: "AI Search", to: "/ai/search" },
+  { label: "Gợi ý địa điểm", to: "/ai/recommendations" },
+  { label: "Chatbot", to: "/ai/chatbot" },
+  { label: "Tạo lịch trình AI", to: "/ai/itinerary" },
+  { label: "Công cụ nội dung", to: "/ai/content-tools" },
 ];
 
 export function RootLayout() {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAiMenuOpen, setIsAiMenuOpen] = useState(false);
   const [settings, setSettings] = useState<SiteSettings>(fallbackSettings);
 
   useEffect(() => {
@@ -56,17 +66,41 @@ export function RootLayout() {
           </Link>
           <nav className="hidden items-center gap-1 md:flex">
             {navItems.map((item) => (
-              <NavLink
-                key={item.to}
-                className={({ isActive }) =>
-                  `rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                    isActive ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
-                  }`
-                }
-                to={item.to}
-              >
-                {item.label}
-              </NavLink>
+              item.to === "/ai" ? (
+                <div className="relative" key={item.to}>
+                  <NavLink
+                    className={({ isActive }) =>
+                      `inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                        isActive ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
+                      }`
+                    }
+                    onMouseEnter={() => setIsAiMenuOpen(true)}
+                    to={item.to}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {item.label}
+                  </NavLink>
+                  {isAiMenuOpen && (
+                    <div className="absolute left-0 top-full w-56 rounded-md border bg-background p-1 shadow-lg" onMouseEnter={() => setIsAiMenuOpen(true)} onMouseLeave={() => setIsAiMenuOpen(false)}>
+                      {aiMenuItems.map((aiItem) => (
+                        <Link className="block rounded-md px-3 py-2 text-sm hover:bg-muted" key={aiItem.to} to={aiItem.to}>{aiItem.label}</Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <NavLink
+                  key={item.to}
+                  className={({ isActive }) =>
+                    `rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                      isActive ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
+                    }`
+                  }
+                  to={item.to}
+                >
+                  {item.label}
+                </NavLink>
+              )
             ))}
           </nav>
           <div className="flex items-center gap-2">
@@ -124,11 +158,20 @@ export function RootLayout() {
                 )}
               </div>
             )}
-            <Button className="md:hidden" variant="ghost">
+            <Button className="md:hidden" onClick={() => setIsMobileMenuOpen((value) => !value)} variant="ghost">
               <Menu className="h-5 w-5" />
             </Button>
           </div>
         </div>
+        {isMobileMenuOpen && (
+          <div className="border-t bg-background px-4 py-3 md:hidden">
+            {[...navItems, ...aiMenuItems].map((item) => (
+              <Link className="block rounded-md px-3 py-2 text-sm hover:bg-muted" key={`${item.to}-${item.label}`} onClick={() => setIsMobileMenuOpen(false)} to={item.to}>
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        )}
       </header>
       <main>
         <Outlet />

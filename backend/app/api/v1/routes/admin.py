@@ -1,12 +1,8 @@
-from pathlib import Path
-from uuid import uuid4
-
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.dependencies import require_admin, require_moderator_or_admin
-from app.core.config import settings
 from app.db.session import get_db
 from app.models.place import Category, Place
 from app.models.review_post import CommentReport, PlaceReview, PlaceReviewReport, PostComment, PostReport, ReviewPost
@@ -21,6 +17,7 @@ from app.schemas.user import AdminUserRead, MessageResponse, UserRoleUpdate, Use
 from app.services.place_service import PlaceService
 from app.services.review_post_service import ReviewPostService
 from app.services.settings_service import SettingsService
+from app.services.upload_service import UploadService
 from app.services.user_service import UserService
 
 router = APIRouter()
@@ -69,7 +66,8 @@ async def upload_setting_image(
         raise HTTPException(status_code=400, detail="Missing file field.")
 
     normalized_type = "hero" if upload_type in {"hero_image", "hero_background"} else upload_type
-    url = await SettingsService(db).upload_image(file, normalized_type)
+    response = await UploadService().upload_files([file], "settings_image", folder=f"settings/{normalized_type}")
+    url = response.urls[0]
     return SettingsUploadResponse(url=url, image_url=url)
 
 
@@ -78,28 +76,8 @@ async def upload_place_images(
     files: list[UploadFile] = File(...),
     _: User = Depends(require_admin),
 ) -> dict[str, list[str]]:
-    if len(files) > MAX_PLACE_IMAGE_UPLOADS:
-        raise HTTPException(status_code=400, detail="You can upload up to 10 images at a time.")
-
-    upload_dir = Path(__file__).resolve().parents[4] / "static" / "uploads" / "places"
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    urls: list[str] = []
-
-    for file in files:
-        suffix = ALLOWED_PLACE_IMAGE_TYPES.get(file.content_type or "")
-        if not suffix:
-            raise HTTPException(status_code=400, detail="Only jpg, png, and webp images are allowed.")
-
-        content = await file.read()
-        if len(content) > MAX_PLACE_IMAGE_BYTES:
-            raise HTTPException(status_code=400, detail="Each image must be 5MB or smaller.")
-
-        filename = f"{uuid4().hex}{suffix}"
-        path = upload_dir / filename
-        path.write_bytes(content)
-        urls.append(f"{settings.backend_url.rstrip('/')}/static/uploads/places/{filename}")
-
-    return {"urls": urls}
+    response = await UploadService().upload_files(files, "place_image")
+    return {"urls": response.urls}
 
 
 @router.get("/dashboard/stats")

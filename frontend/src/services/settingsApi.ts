@@ -1,6 +1,5 @@
-import axios from "axios";
-
-import { api, authStorage } from "@/services/api";
+import { api } from "@/services/api";
+import { uploadFiles } from "@/services/uploadApi";
 
 export interface SiteSettings {
   site_name: string;
@@ -83,20 +82,8 @@ export async function uploadSettingImage(file: File, type: "logo" | "favicon" | 
     throw new Error("No file selected");
   }
 
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
-  const token = authStorage.getToken();
-  const response = await axios.post<{ url: string; image_url?: string }>(
-    `${apiBaseUrl}/admin/settings/upload`,
-    formData,
-    {
-      params: { upload_type: type },
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    },
-  );
-  return response.data.url || response.data.image_url || "";
+  const response = await uploadFiles([file], "settings_image", type);
+  return response.urls[0] || "";
 }
 
 export async function getPublicSettings() {

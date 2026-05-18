@@ -1,7 +1,4 @@
 from math import asin, cos, radians, sin, sqrt
-from pathlib import Path
-from uuid import uuid4
-
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -9,13 +6,13 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import get_current_user, require_admin
 from app.db.session import get_db
 from app.models.place import Place
-from app.core.config import settings
 from app.models.review_post import PlaceReview, PlaceReviewHelpful, PlaceReviewReport
 from app.models.user import User
 from app.repositories.place_repository import PlaceRepository
 from app.schemas.place import PlaceCreate, PlaceDetailRead, PlaceMapRead, PlaceRead, PlaceUpdate, RouteSuggestionRead, RouteSuggestionRequest
 from app.schemas.review_post import PlaceReviewCreate, PlaceReviewListRead, PlaceReviewRead, PlaceReviewReportCreate, PlaceReviewReportRead, PlaceReviewUpdate, RatingSummary
 from app.services.place_service import PlaceService
+from app.services.upload_service import UploadService
 
 router = APIRouter()
 
@@ -340,22 +337,8 @@ async def upload_place_review_images(
     db: Session = Depends(get_db),
 ) -> dict[str, list[str]]:
     get_public_place_or_404(db, place_id)
-    if len(files) > MAX_REVIEW_IMAGE_UPLOADS:
-        raise HTTPException(status_code=400, detail="You can upload up to 10 images.")
-    upload_dir = Path(__file__).resolve().parents[4] / "static" / "uploads" / "place-reviews"
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    urls: list[str] = []
-    for file in files:
-        suffix = ALLOWED_REVIEW_IMAGE_TYPES.get(file.content_type or "")
-        if not suffix:
-            raise HTTPException(status_code=400, detail="Only jpg, png, and webp images are allowed.")
-        content = await file.read()
-        if len(content) > MAX_REVIEW_IMAGE_BYTES:
-            raise HTTPException(status_code=400, detail="Each image must be 5MB or smaller.")
-        filename = f"{uuid4().hex}{suffix}"
-        (upload_dir / filename).write_bytes(content)
-        urls.append(f"{settings.backend_url.rstrip('/')}/static/uploads/place-reviews/{filename}")
-    return {"urls": urls}
+    response = await UploadService().upload_files(files, "review_image", folder=f"reviews/place-{place_id}")
+    return {"urls": response.urls}
 
 
 @router.get("/{place_id}/reviews", response_model=PlaceReviewListRead)

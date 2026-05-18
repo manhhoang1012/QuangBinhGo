@@ -1,5 +1,6 @@
 import { api, type Category, type Place, type ReviewPost, type User } from "@/services/api";
 import { type PlacePayload } from "@/services/placeApi";
+import { uploadFiles } from "@/services/uploadApi";
 
 export interface AdminStats {
   total_users: number;
@@ -97,12 +98,8 @@ export async function deleteAdminPlace(id: number) {
 }
 
 export async function uploadPlaceImages(files: File[]) {
-  const formData = new FormData();
-  files.forEach((file) => formData.append("files", file));
-  const response = await api.post<{ urls: string[] }>("/admin/uploads/places", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-  return response.data.urls;
+  const response = await uploadFiles(files, "place_image");
+  return response.urls;
 }
 
 export async function getAdminPosts(params: { search?: string; skip?: number; limit?: number } = {}) {

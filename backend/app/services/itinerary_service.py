@@ -18,6 +18,7 @@ from app.schemas.itinerary import (
     ItineraryReorderItem,
     ItineraryUpdate,
 )
+from app.services.gemini_service import gemini_service
 
 
 class ItineraryService:
@@ -152,6 +153,10 @@ class ItineraryService:
             ]
             places = ranked or places
 
+        gemini_response = self._generate_ai_with_gemini(request, places[:30])
+        if gemini_response:
+            return gemini_response
+
         slots = [
             ("08:00", "Ăn sáng và chuẩn bị di chuyển"),
             ("09:30", "Khám phá điểm chính"),
@@ -189,3 +194,77 @@ class ItineraryService:
             interests=request.interests,
             days=days,
         )
+
+    def _generate_ai_with_gemini(self, request: AiItineraryGenerateRequest, places: list[Place]) -> AiItineraryResponse | None:
+        if not gemini_service.available or not places:
+            return None
+        place_context = [
+            {
+                "id": place.id,
+                "name": place.name,
+                "category": place.category,
+                "region": place.region,
+                "tags": place.tags,
+                "address": place.address,
+                "rating": float(place.rating_avg or 0),
+            }
+            for place in places
+        ]
+        fallback = {}
+        prompt = f"""
+You are planning a Quang Binh itinerary. Use only these real database places:
+{place_context}
+
+User request:
+days={request.days}
+budget={request.budget}
+interests={request.interests}
+travel_style={request.travel_style}
+start_location={request.start_location}
+start_date={request.start_date}
+people_count={request.people_count}
+
+Return JSON with title, description, total_days, estimated_budget, travel_style, interests, days.
+Each day has day_number, summary, items.
+Each item has time (HH:MM), title, place_id nullable, place_name nullable, note, estimated_cost, transport_note, duration_minutes.
+Do not invent place_id. For meals/hotel area, use place_id null.
+"""
+        data = gemini_service.generate_json(prompt, fallback=fallback, max_output_tokens=2600)
+        if not isinstance(data, dict) or not data.get("days"):
+            return None
+        valid_place_ids = {place.id for place in places}
+        try:
+            normalized_days: list[AiItineraryDay] = []
+            for day in data.get("days", [])[: request.days]:
+                items: list[AiItineraryItem] = []
+                for item in day.get("items", [])[:8]:
+                    place_id = item.get("place_id")
+                    if place_id not in valid_place_ids:
+                        place_id = None
+                    items.append(AiItineraryItem(
+                        time=str(item.get("time") or "09:00")[:5],
+                        title=str(item.get("title") or "Hoạt động"),
+                        place_id=place_id,
+                        place_name=item.get("place_name") if place_id else None,
+                        note=str(item.get("note") or ""),
+                        estimated_cost=item.get("estimated_cost"),
+                        transport_note=item.get("transport_note"),
+                        duration_minutes=int(item.get("duration_minutes") or 90),
+                    ))
+                normalized_days.append(AiItineraryDay(
+                    day_number=int(day.get("day_number") or len(normalized_days) + 1),
+                    summary=str(day.get("summary") or ""),
+                    items=items,
+                ))
+            return AiItineraryResponse(
+                title=str(data.get("title") or f"Lịch trình Quảng Bình {request.days} ngày"),
+                description=str(data.get("description") or "Lịch trình Gemini dựa trên dữ liệu địa điểm thật."),
+                total_days=request.days,
+                estimated_budget=data.get("estimated_budget", request.budget),
+                travel_style=str(data.get("travel_style") or request.travel_style),
+                interests=list(data.get("interests") or request.interests),
+                days=normalized_days,
+                todo=None,
+            )
+        except Exception:
+            return None

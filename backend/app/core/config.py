@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     cloudinary_cloud_name: str = ""
     cloudinary_api_key: str = ""
     cloudinary_api_secret: str = ""
+    cloudinary_upload_folder: str = "quangbinhgo"
 
     google_client_id: str = ""
     google_client_secret: str = ""
@@ -47,6 +48,8 @@ class Settings(BaseSettings):
     pinecone_api_key: str = ""
     pinecone_index_name: str = "quangbinhgo-review-posts"
     sentence_transformer_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
     auto_create_tables: bool = Field(default=True, alias="AUTO_CREATE_TABLES")
 
     @property

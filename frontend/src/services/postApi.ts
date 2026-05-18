@@ -1,6 +1,5 @@
-import axios from "axios";
-
-import { api, authStorage, type ReviewPost } from "@/services/api";
+import { api, type ReviewPost } from "@/services/api";
+import { uploadFiles } from "@/services/uploadApi";
 
 export interface CreatePostPayload {
   title?: string;
@@ -17,8 +16,6 @@ export interface CreatePostPayload {
 export type UpdatePostPayload = Partial<CreatePostPayload>;
 export type FeedType = "latest" | "trending" | "following" | "recommended" | "saved";
 export type FeedSort = "latest" | "popular" | "trending";
-
-const baseURL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
 
 export async function getCommunityFeed(type: FeedType = "latest", params: { skip?: number; limit?: number } = {}) {
   if (type === "saved") return getSavedPosts(params);
@@ -71,22 +68,12 @@ export async function deleteReviewPost(postId: number) {
   await api.delete(`/review-posts/${postId}`);
 }
 
-async function uploadFiles(files: File[], endpoint: string) {
-  const formData = new FormData();
-  files.forEach((file) => formData.append("files", file));
-  const token = authStorage.getToken();
-  const response = await axios.post<{ urls: string[] }>(`${baseURL}${endpoint}`, formData, {
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  });
-  return response.data.urls;
-}
-
 export function uploadPostImages(files: File[]) {
-  return uploadFiles(files, "/review-posts/uploads");
+  return uploadFiles(files, "post_image").then((response) => response.urls);
 }
 
 export function uploadPostVideos(files: File[]) {
-  return uploadFiles(files, "/review-posts/uploads/videos");
+  return uploadFiles(files, "post_video").then((response) => response.urls);
 }
 
 export async function likePost(postId: number) {

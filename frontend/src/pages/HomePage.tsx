@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, MapPin, MessageCircle, Sparkles } from "lucide-react";
+import { ArrowRight, Bot, CalendarDays, Hash, MapPin, MapPinned, MessageCircle, Search, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,13 @@ export function HomePage() {
     { label: "Reviews", value: String(posts.length) },
     { label: "Travelers", value: "-" },
     { label: "Saved trips", value: "-" },
+  ];
+  const aiCards = [
+    { title: "Tìm kiếm AI", description: "Hỏi bằng ngôn ngữ tự nhiên để tìm places và review.", to: "/ai/search", icon: Search },
+    { title: "Gợi ý địa điểm", description: "Đề xuất theo sở thích, ngân sách và kiểu du lịch.", to: "/ai/recommendations", icon: MapPinned },
+    { title: "Chatbot du lịch", description: "Hỏi nhanh về mùa đi, ăn uống, chi phí và lịch trình.", to: "/ai/chatbot", icon: Bot },
+    { title: "Tạo lịch trình", description: "Tạo lịch trình nhiều ngày bằng Gemini AI.", to: "/ai/itinerary", icon: CalendarDays },
+    { title: "Gợi ý caption/hashtag", description: "Viết review nhanh hơn với công cụ nội dung AI.", to: "/ai/content-tools", icon: Hash },
   ];
 
   return (
@@ -71,6 +78,41 @@ export function HomePage() {
               </CardContent>
             </Card>
           ))}
+        </div>
+      </section>
+
+      <section className="border-y bg-muted/30 py-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="flex items-center gap-2 text-sm font-medium uppercase tracking-wide text-accent">
+                <Sparkles className="h-4 w-4" />
+                Gemini AI
+              </p>
+              <h2 className="mt-2 text-3xl font-semibold">Trợ lý AI du lịch Quảng Bình</h2>
+              <p className="mt-3 max-w-2xl text-muted-foreground">Tìm địa điểm, tạo lịch trình và viết review nhanh hơn với Gemini AI.</p>
+            </div>
+            <Link to="/ai">
+              <Button variant="outline">Mở AI Hub</Button>
+            </Link>
+          </div>
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            {aiCards.map((card) => {
+              const Icon = card.icon;
+              return (
+                <Card className="h-full" key={card.to}>
+                  <CardContent className="flex h-full flex-col pt-5">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary"><Icon className="h-5 w-5" /></span>
+                    <h3 className="mt-4 font-semibold">{card.title}</h3>
+                    <p className="mt-2 flex-1 text-sm leading-6 text-muted-foreground">{card.description}</p>
+                    <Link className="mt-4" to={card.to}>
+                      <Button className="w-full" variant="secondary">Dùng ngay</Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         </div>
       </section>
 

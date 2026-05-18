@@ -1,5 +1,5 @@
-import axios from "axios";
-import { api, authStorage, type Place, type PlaceReview } from "@/services/api";
+import { api, type Place, type PlaceReview } from "@/services/api";
+import { uploadFiles } from "@/services/uploadApi";
 
 export interface GetPlacesParams {
   q?: string;
@@ -106,14 +106,8 @@ export async function deletePlaceReview(placeId: number, reviewId: number) {
 }
 
 export async function uploadPlaceReviewImages(placeId: number, files: File[]) {
-  const formData = new FormData();
-  files.forEach((file) => formData.append("files", file));
-  const token = authStorage.getToken();
-  const baseURL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
-  const response = await axios.post<{ urls: string[] }>(`${baseURL}/places/${placeId}/reviews/uploads`, formData, {
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  });
-  return response.data.urls;
+  const response = await uploadFiles(files, "review_image", placeId);
+  return response.urls;
 }
 
 export async function getFeaturedPlaceReviews(placeId: number) {

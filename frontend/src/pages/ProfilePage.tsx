@@ -86,7 +86,7 @@ export function ProfilePage() {
     setError(null);
     setSuccess(null);
     try {
-      const uploadedUrl = await uploadImage(file);
+      const uploadedUrl = await uploadImage(file, field === "avatar_url" ? "avatar" : "cover");
       setForm((current) => ({ ...current, [field]: uploadedUrl }));
       setSuccess(field === "avatar_url" ? "Avatar uploaded. Save profile to apply it." : "Cover image uploaded. Save profile to apply it.");
     } catch {

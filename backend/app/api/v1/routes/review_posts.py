@@ -1,13 +1,10 @@
-from pathlib import Path
 from typing import Literal
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
-from app.core.config import settings
 from app.core.security import get_token_subject
 from app.db.session import get_db
 from app.models.user import User
@@ -31,6 +28,7 @@ from app.schemas.review_post import (
 )
 from app.services.embedding_service import EmbeddingService
 from app.services.review_post_service import ReviewPostService
+from app.services.upload_service import UploadService
 from app.services.vector_search_service import VectorSearchService
 
 router = APIRouter()
@@ -65,25 +63,6 @@ def get_review_post_service(db: Session = Depends(get_db)) -> ReviewPostService:
         embedding_service=EmbeddingService(),
         vector_search_service=VectorSearchService(),
     )
-
-
-async def save_uploads(*, files: list[UploadFile], allowed: dict[str, str], max_size: int, max_files: int, folder: str, kind: str) -> dict[str, list[str]]:
-    if len(files) > max_files:
-        raise HTTPException(status_code=400, detail=f"You can upload up to {max_files} {kind} files.")
-    upload_dir = Path(__file__).resolve().parents[4] / "static" / "uploads" / folder
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    urls: list[str] = []
-    for file in files:
-        suffix = allowed.get(file.content_type or "")
-        if not suffix:
-            raise HTTPException(status_code=400, detail=f"Unsupported {kind} file type.")
-        content = await file.read()
-        if len(content) > max_size:
-            raise HTTPException(status_code=400, detail=f"Each {kind} must be {max_size // 1024 // 1024}MB or smaller.")
-        filename = f"{uuid4().hex}{suffix}"
-        (upload_dir / filename).write_bytes(content)
-        urls.append(f"{settings.backend_url.rstrip('/')}/static/uploads/{folder}/{filename}")
-    return {"urls": urls}
 
 
 @router.get("/feed", response_model=list[ReviewPostRead])
@@ -142,13 +121,14 @@ def get_my_drafts(skip: int = Query(default=0, ge=0), limit: int = Query(default
 
 @router.post("/uploads")
 async def upload_post_images(files: list[UploadFile] = File(...), _: User = Depends(get_current_user)) -> dict[str, list[str]]:
-    return await save_uploads(files=files, allowed=ALLOWED_POST_IMAGE_TYPES, max_size=MAX_POST_IMAGE_BYTES, max_files=MAX_POST_IMAGE_UPLOADS, folder="posts", kind="image")
+    response = await UploadService().upload_files(files, "post_image")
+    return {"urls": response.urls}
 
 
 @router.post("/uploads/videos")
 async def upload_post_videos(files: list[UploadFile] = File(...), _: User = Depends(get_current_user)) -> dict[str, list[str]]:
-    # TODO: Production should stream to Cloudinary/S3, generate thumbnails, and scan/transcode videos.
-    return await save_uploads(files=files, allowed=ALLOWED_POST_VIDEO_TYPES, max_size=MAX_POST_VIDEO_BYTES, max_files=MAX_POST_VIDEO_UPLOADS, folder="posts/videos", kind="video")
+    response = await UploadService().upload_files(files, "post_video")
+    return {"urls": response.urls}
 
 
 @router.post("", response_model=ReviewPostRead, status_code=status.HTTP_201_CREATED)
