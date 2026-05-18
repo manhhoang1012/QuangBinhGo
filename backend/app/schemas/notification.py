@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import BaseModel, Field
 
 from app.schemas.user import PublicUserRead
 
@@ -15,7 +15,7 @@ class NotificationRead(BaseModel):
     target_type: str
     target_id: int | None = None
     target_url: str | None = None
-    metadata: dict[str, Any] | None = Field(default=None, validation_alias=AliasChoices("metadata", "metadata_json"))
+    metadata: dict[str, Any] | None = Field(default=None, validation_alias="metadata_json")
     is_read: bool
     read_at: datetime | None = None
     created_at: datetime
