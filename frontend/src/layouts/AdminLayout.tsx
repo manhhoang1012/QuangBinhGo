@@ -1,4 +1,4 @@
-import { BarChart3, FolderTree, LayoutDashboard, LogOut, MapPinned, MessageSquare, Settings, Star, Users } from "lucide-react";
+import { BarChart3, Flag, FolderTree, LayoutDashboard, LogOut, MapPinned, MessageSquare, Settings, Star, Users } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ const adminNavItems = [
   { label: "Posts", to: "/admin/posts", icon: MessageSquare, roles: ["moderator", "admin"] },
   { label: "Comments", to: "/admin/comments", icon: MessageSquare, roles: ["moderator", "admin"] },
   { label: "Reviews", to: "/admin/reviews", icon: Star, roles: ["moderator", "admin"] },
+  { label: "Reports", to: "/admin/reports", icon: Flag, roles: ["moderator", "admin"] },
   { label: "Categories", to: "/admin/categories", icon: FolderTree, roles: ["admin"] },
   { label: "Settings", to: "/admin/settings", icon: Settings, roles: ["admin"] },
 ];

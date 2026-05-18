@@ -72,6 +72,7 @@ def ensure_admin_content_columns() -> None:
             "tagged_users": "JSON DEFAULT '[]' NOT NULL",
             "visibility": "VARCHAR(30) DEFAULT 'public' NOT NULL",
             "is_draft": "BOOLEAN DEFAULT FALSE NOT NULL",
+            "is_featured": "BOOLEAN DEFAULT FALSE NOT NULL",
             "share_count": "INTEGER DEFAULT 0 NOT NULL",
         },
         "post_comments": {
@@ -105,6 +106,7 @@ def ensure_admin_content_columns() -> None:
             connection.execute(text("UPDATE review_posts SET tagged_users = '[]' WHERE tagged_users IS NULL"))
             connection.execute(text("UPDATE review_posts SET visibility = 'public' WHERE visibility IS NULL"))
             connection.execute(text("UPDATE review_posts SET is_draft = FALSE WHERE is_draft IS NULL"))
+            connection.execute(text("UPDATE review_posts SET is_featured = FALSE WHERE is_featured IS NULL"))
             connection.execute(text("UPDATE review_posts SET share_count = 0 WHERE share_count IS NULL"))
         if "post_comments" in tables:
             connection.execute(text("UPDATE post_comments SET status = 'visible' WHERE status IS NULL"))

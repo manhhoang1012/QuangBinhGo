@@ -8,7 +8,31 @@ export interface AdminStats {
   total_posts: number;
   total_comments: number;
   total_reviews: number;
+  total_likes: number;
+  total_reports: number;
+  pending_reports: number;
+  featured_posts: ReviewPost[];
+  popular_places: Place[];
   recent_activities: Array<{ type: string; title: string; actor: string; target: string; created_at: string }>;
+}
+
+export interface AdminReport {
+  id: number;
+  type: "post" | "comment" | "review" | "user";
+  reporter?: User | null;
+  target_id: number;
+  target_label: string;
+  reason: string;
+  detail?: string | null;
+  status: string;
+  created_at: string;
+}
+
+export interface AdminReportList {
+  items: AdminReport[];
+  total: number;
+  skip: number;
+  limit: number;
 }
 
 export interface AdminComment {
@@ -102,13 +126,18 @@ export async function uploadPlaceImages(files: File[]) {
   return response.urls;
 }
 
-export async function getAdminPosts(params: { search?: string; skip?: number; limit?: number } = {}) {
+export async function getAdminPosts(params: { search?: string; status?: string; reported?: boolean; featured?: boolean; skip?: number; limit?: number } = {}) {
   const response = await api.get<ReviewPost[]>("/admin/posts", { params });
   return response.data;
 }
 
 export async function updatePostStatus(id: number, status: string) {
   const response = await api.patch<ReviewPost>(`/admin/posts/${id}/status`, { status });
+  return response.data;
+}
+
+export async function updatePostFeatured(id: number, is_featured: boolean) {
+  const response = await api.patch<ReviewPost>(`/admin/posts/${id}/featured`, { is_featured });
   return response.data;
 }
 
@@ -124,6 +153,16 @@ export async function getAdminComments(params: { post_id?: number; user_id?: num
 
 export async function getAdminCommentReports(params: { status?: string; skip?: number; limit?: number } = {}) {
   const response = await api.get("/admin/comments/reports", { params });
+  return response.data;
+}
+
+export async function getAdminReports(params: { type?: string; status?: string; skip?: number; limit?: number } = {}) {
+  const response = await api.get<AdminReportList>("/admin/reports", { params });
+  return response.data;
+}
+
+export async function resolveReport(id: number, data: { type: "post" | "comment" | "review"; status: "resolved" | "rejected" }) {
+  const response = await api.patch<{ id: number; type: string; status: string }>(`/admin/reports/${id}/status`, data);
   return response.data;
 }
 

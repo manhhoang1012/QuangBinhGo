@@ -5,11 +5,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { AdminPageHeader } from "@/layouts/AdminLayout";
 import { type ReviewPost } from "@/services/api";
-import { deletePost, getAdminPosts, updatePostStatus } from "@/services/adminApi";
+import { deletePost, getAdminPosts, updatePostFeatured, updatePostStatus } from "@/services/adminApi";
 
 export function AdminPostsPage() {
   const [posts, setPosts] = useState<ReviewPost[]>([]);
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [reportedOnly, setReportedOnly] = useState(false);
   const [selectedPost, setSelectedPost] = useState<ReviewPost | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,7 +22,7 @@ export function AdminPostsPage() {
       setIsLoading(true);
       setError(null);
       try {
-        setPosts(await getAdminPosts({ search: query || undefined }));
+        setPosts(await getAdminPosts({ search: query || undefined, status: statusFilter || undefined, reported: reportedOnly || undefined }));
       } catch {
         setError("Could not load social posts.");
       } finally {
@@ -28,13 +30,13 @@ export function AdminPostsPage() {
       }
     };
     void loadPosts();
-  }, [query]);
+  }, [query, statusFilter, reportedOnly]);
 
   const loadPosts = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      setPosts(await getAdminPosts({ search: query || undefined }));
+      setPosts(await getAdminPosts({ search: query || undefined, status: statusFilter || undefined, reported: reportedOnly || undefined }));
     } catch {
       setError("Could not load social posts.");
     } finally {
@@ -63,6 +65,16 @@ export function AdminPostsPage() {
     }
   };
 
+  const handleFeatured = async (post: ReviewPost) => {
+    try {
+      await updatePostFeatured(post.id, !post.is_featured);
+      setNotice(post.is_featured ? "Post removed from featured list." : "Post marked as featured.");
+      await loadPosts();
+    } catch {
+      setError("Only admins can update featured posts.");
+    }
+  };
+
   const filteredPosts = posts.filter((post) => `${post.title} ${post.content} ${post.author.full_name}`.toLowerCase().includes(query.toLowerCase()));
 
   return (
@@ -70,8 +82,18 @@ export function AdminPostsPage() {
       <AdminPageHeader description="Review, hide, show, or delete community posts reported by users." title="Social posts" />
       {notice && <div className="mt-6 rounded-lg border bg-accent/10 p-4 text-sm text-accent">{notice}</div>}
       {error && <div className="mt-6 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">{error}</div>}
-      <div className="mt-6 flex gap-2">
+      <div className="mt-6 grid gap-2 md:grid-cols-[1fr_180px_160px_auto]">
         <Input onChange={(event) => setQuery(event.target.value)} placeholder="Search posts by title, content, or author" value={query} />
+        <select className="rounded-md border bg-background px-3 py-2 text-sm" onChange={(event) => setStatusFilter(event.target.value)} value={statusFilter}>
+          <option value="">All statuses</option>
+          <option value="visible">Visible</option>
+          <option value="hidden">Hidden</option>
+          <option value="deleted">Deleted</option>
+        </select>
+        <label className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+          <input checked={reportedOnly} onChange={(event) => setReportedOnly(event.target.checked)} type="checkbox" />
+          Reported only
+        </label>
         <Button onClick={() => void loadPosts()} variant="outline">Search</Button>
       </div>
       {isLoading && <Card className="mt-6 h-48 animate-pulse bg-muted/60" />}
@@ -84,11 +106,13 @@ export function AdminPostsPage() {
               <div>
                 <p className="font-medium">{post.title}</p>
                 <p className="text-sm text-muted-foreground">{post.author.full_name} - {post.place?.name ?? "No place"} - {post.likes_count} likes - {post.comments_count} comments</p>
+                <p className="mt-1 text-xs text-muted-foreground">Status: {post.status ?? "visible"}{post.is_featured ? " - Featured" : ""}</p>
                 <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{post.content}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button onClick={() => setSelectedPost(post)} variant="outline">View</Button>
                 <Button onClick={() => void handleStatus(post, post.status === "hidden" ? "visible" : "hidden")} variant="outline">{post.status === "hidden" ? "Show" : "Hide"}</Button>
+                <Button onClick={() => void handleFeatured(post)} variant="outline">{post.is_featured ? "Unfeature" : "Feature"}</Button>
                 <Button onClick={() => void handleDelete(post)} variant="outline">Delete</Button>
               </div>
             </CardContent>

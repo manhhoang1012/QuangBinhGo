@@ -106,6 +106,7 @@ class ReviewPostRead(BaseModel):
     tagged_users: list[str] = Field(default_factory=list)
     visibility: str = "public"
     is_draft: bool = False
+    is_featured: bool = False
     status: str = "visible"
     author: UserRead
     place: PlaceRead | None = None

@@ -7,6 +7,7 @@ import { AdminCategoriesPage } from "@/pages/AdminCategoriesPage";
 import { AdminCommentsPage } from "@/pages/AdminCommentsPage";
 import { AdminPlacesPage } from "@/pages/AdminPlacesPage";
 import { AdminPostsPage } from "@/pages/AdminPostsPage";
+import { AdminReportsPage } from "@/pages/AdminReportsPage";
 import { AdminReviewsPage } from "@/pages/AdminReviewsPage";
 import { AdminSettingsPage } from "@/pages/AdminSettingsPage";
 import { AdminUsersPage } from "@/pages/AdminUsersPage";
@@ -258,6 +259,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
             <AdminReviewsPage />
+          </ProtectedAdminRoute>
+        ),
+      },
+      {
+        path: "admin/reports",
+        element: (
+          <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
+            <AdminReportsPage />
           </ProtectedAdminRoute>
         ),
       },

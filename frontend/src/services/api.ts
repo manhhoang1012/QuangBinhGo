@@ -104,6 +104,7 @@ export interface ReviewPost {
   tagged_users: string[];
   visibility: "public" | "followers" | "private";
   is_draft: boolean;
+  is_featured?: boolean;
   status?: string;
   author: User;
   place?: Place | null;

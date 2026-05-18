@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { MapPinned, MessageSquare, Star, Users } from "lucide-react";
+import { Flag, Heart, MapPinned, MessageSquare, Star, Users } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdminPageHeader } from "@/layouts/AdminLayout";
@@ -41,6 +41,9 @@ export function AdminDashboardPage() {
     { label: "Places", value: stats?.total_places ?? places.length, icon: MapPinned },
     { label: "Social posts", value: stats?.total_posts ?? posts.length, icon: MessageSquare },
     { label: "Comments", value: commentCount, icon: MessageSquare },
+    { label: "Likes", value: stats?.total_likes ?? 0, icon: Heart },
+    { label: "Reports", value: stats?.total_reports ?? 0, icon: Flag },
+    { label: "Pending reports", value: stats?.pending_reports ?? 0, icon: Flag },
     { label: "Reviews", value: stats?.total_reviews ?? 0, icon: Star },
   ];
 
@@ -52,11 +55,11 @@ export function AdminDashboardPage() {
       />
 
       {error && <AlertMessage tone="error" text={error} />}
-      {isLoading && <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">{metrics.map((metric) => <Card className="h-32 animate-pulse bg-muted/60" key={metric.label} />)}</div>}
+      {isLoading && <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{metrics.map((metric) => <Card className="h-32 animate-pulse bg-muted/60" key={metric.label} />)}</div>}
 
       {!isLoading && !error && (
         <>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {metrics.map((metric) => {
               const Icon = metric.icon;
               return (
@@ -73,10 +76,10 @@ export function AdminDashboardPage() {
 
           <div className="mt-8 grid gap-6 xl:grid-cols-2">
             <Card>
-              <CardHeader><CardTitle>Recent posts</CardTitle></CardHeader>
+              <CardHeader><CardTitle>Featured posts</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                {posts.length === 0 && <p className="text-sm text-muted-foreground">No social posts yet.</p>}
-                {posts.slice(0, 5).map((post) => (
+                {(stats?.featured_posts?.length ?? 0) === 0 && <p className="text-sm text-muted-foreground">No featured posts yet.</p>}
+                {stats?.featured_posts?.slice(0, 5).map((post) => (
                   <div className="border-b pb-3 last:border-b-0 last:pb-0" key={post.id}>
                     <p className="font-medium">{post.title}</p>
                     <p className="text-sm text-muted-foreground">{post.author.full_name} - {post.place?.name ?? "No place"} - {post.likes_count} likes - {post.comments_count} comments</p>
@@ -85,13 +88,25 @@ export function AdminDashboardPage() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle>Newest places</CardTitle></CardHeader>
+              <CardHeader><CardTitle>Popular places</CardTitle></CardHeader>
               <CardContent className="space-y-4">
-                {places.length === 0 && <p className="text-sm text-muted-foreground">No places yet.</p>}
-                {places.slice(0, 5).map((place) => (
+                {(stats?.popular_places?.length ?? 0) === 0 && <p className="text-sm text-muted-foreground">No popular places yet.</p>}
+                {stats?.popular_places?.slice(0, 5).map((place) => (
                   <div className="border-b pb-3 last:border-b-0 last:pb-0" key={place.id}>
                     <p className="font-medium">{place.name}</p>
-                    <p className="text-sm text-muted-foreground">{place.category} - {place.address}</p>
+                    <p className="text-sm text-muted-foreground">{place.category} - {place.review_count ?? 0} reviews - {place.rating_avg ?? 0}/5</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+            <Card className="xl:col-span-2">
+              <CardHeader><CardTitle>Recent activities</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                {(stats?.recent_activities?.length ?? 0) === 0 && <p className="text-sm text-muted-foreground">No recent activity yet.</p>}
+                {stats?.recent_activities?.map((activity, index) => (
+                  <div className="border-b pb-3 last:border-b-0 last:pb-0" key={`${activity.type}-${activity.created_at}-${index}`}>
+                    <p className="font-medium">{activity.title}</p>
+                    <p className="text-sm text-muted-foreground">{activity.actor} - {activity.target || "System"} - {new Date(activity.created_at).toLocaleString()}</p>
                   </div>
                 ))}
               </CardContent>

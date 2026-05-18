@@ -5,7 +5,9 @@ from sqlalchemy.orm import Session, selectinload
 from app.api.dependencies import require_admin, require_moderator_or_admin
 from app.db.session import get_db
 from app.models.place import Category, Place
-from app.models.review_post import CommentReport, PlaceReview, PlaceReviewReport, PostComment, PostReport, ReviewPost
+from pydantic import BaseModel, Field
+
+from app.models.review_post import CommentLike, CommentReport, PlaceReview, PlaceReviewReport, PostComment, PostLike, PostReport, ReviewPost
 from app.models.user import User
 from app.repositories.place_repository import PlaceRepository
 from app.repositories.review_post_repository import ReviewPostRepository
@@ -28,6 +30,15 @@ MAX_PLACE_IMAGE_BYTES = 5 * 1024 * 1024
 MAX_PLACE_IMAGE_UPLOADS = 10
 
 
+class PostFeaturedUpdate(BaseModel):
+    is_featured: bool
+
+
+class AdminReportResolvePayload(BaseModel):
+    type: str = Field(pattern="^(post|comment|review)$")
+    status: str = Field(default="resolved", pattern="^(resolved|rejected)$")
+
+
 def user_service(db: Session) -> UserService:
     return UserService(UserRepository(db))
 
@@ -41,6 +52,20 @@ def get_target_user(user_id: int, db: Session = Depends(get_db)) -> User:
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
     return user
+
+
+def user_summary(user: User | None) -> dict | None:
+    if not user:
+        return None
+    return {
+        "id": user.id,
+        "email": user.email,
+        "username": user.username,
+        "full_name": user.full_name,
+        "avatar_url": user.avatar_url,
+        "role": user.role,
+        "is_active": user.is_active,
+    }
 
 
 @router.get("/settings", response_model=SiteSettingsPayload)
@@ -88,6 +113,28 @@ def dashboard_stats(_: User = Depends(require_admin), db: Session = Depends(get_
     total_posts = db.scalar(select(func.count(ReviewPost.id))) or 0
     total_comments = db.scalar(select(func.count(PostComment.id))) or 0
     total_reviews = db.scalar(select(func.count(PlaceReview.id))) or 0
+    total_likes = (db.scalar(select(func.count(PostLike.id))) or 0) + (db.scalar(select(func.count(CommentLike.id))) or 0)
+    post_reports = db.scalar(select(func.count(PostReport.id))) or 0
+    comment_reports = db.scalar(select(func.count(CommentReport.id))) or 0
+    review_reports = db.scalar(select(func.count(PlaceReviewReport.id))) or 0
+    total_reports = post_reports + comment_reports + review_reports
+    pending_reports = (
+        (db.scalar(select(func.count(PostReport.id)).where(PostReport.status.in_(["open", "pending"]))) or 0)
+        + (db.scalar(select(func.count(CommentReport.id)).where(CommentReport.status.in_(["open", "pending"]))) or 0)
+        + (db.scalar(select(func.count(PlaceReviewReport.id)).where(PlaceReviewReport.status.in_(["open", "pending"]))) or 0)
+    )
+    post_repo = ReviewPostRepository(db)
+    svc = post_service(db)
+    featured_ids = list(db.scalars(select(ReviewPost.id).where(ReviewPost.is_featured.is_(True)).order_by(ReviewPost.created_at.desc()).limit(5)).all())
+    featured_rows = list(post_repo.get_many_with_counts(featured_ids).values())
+    featured_posts = svc._rows_to_reads(featured_rows)[:5]
+    popular_places = list(
+        db.scalars(
+            select(Place)
+            .order_by(Place.review_count.desc(), Place.rating_avg.desc(), Place.created_at.desc())
+            .limit(5)
+        ).all()
+    )
     recent_posts = db.scalars(
         select(ReviewPost).options(selectinload(ReviewPost.author), selectinload(ReviewPost.place)).order_by(ReviewPost.created_at.desc()).limit(5)
     ).all()
@@ -97,6 +144,11 @@ def dashboard_stats(_: User = Depends(require_admin), db: Session = Depends(get_
         "total_posts": total_posts,
         "total_comments": total_comments,
         "total_reviews": total_reviews,
+        "total_likes": total_likes,
+        "total_reports": total_reports,
+        "pending_reports": pending_reports,
+        "featured_posts": [post.model_dump(mode="json") for post in featured_posts],
+        "popular_places": [PlaceRead.model_validate(place).model_dump(mode="json") for place in popular_places],
         "recent_activities": [
             {
                 "type": "post",
@@ -193,6 +245,9 @@ def admin_delete_place(place_id: int, _: User = Depends(require_admin), db: Sess
 @router.get("/posts", response_model=list[ReviewPostRead])
 def admin_list_posts(
     search: str | None = None,
+    status_value: str | None = Query(default=None, alias="status"),
+    reported: bool | None = Query(default=None),
+    featured: bool | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),
     _: User = Depends(require_moderator_or_admin),
@@ -200,10 +255,28 @@ def admin_list_posts(
 ):
     rows = ReviewPostRepository(db).list_with_counts(skip=skip, limit=limit, include_hidden=True)
     posts = post_service(db)._rows_to_reads(rows)
+    if status_value:
+        posts = [post for post in posts if post.status == status_value]
+    if featured is not None:
+        posts = [post for post in posts if post.is_featured is featured]
+    if reported:
+        reported_post_ids = set(db.scalars(select(PostReport.post_id).where(PostReport.status.in_(["open", "pending"]))).all())
+        posts = [post for post in posts if post.id in reported_post_ids]
     if search:
         q = search.lower()
         posts = [post for post in posts if q in f"{post.title} {post.content} {post.author.full_name}".lower()]
     return posts
+
+
+@router.get("/posts/reported", response_model=list[AdminPostReportRead])
+def admin_list_reported_posts(
+    status_value: str | None = Query(default=None, alias="status"),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=100),
+    _: User = Depends(require_moderator_or_admin),
+    db: Session = Depends(get_db),
+):
+    return post_service(db).list_reports(status_value=status_value, skip=skip, limit=limit)
 
 
 @router.get("/posts/{post_id}", response_model=ReviewPostRead)
@@ -228,6 +301,17 @@ def admin_update_post_status(post_id: int, payload: PostStatusUpdate, _: User = 
             NotificationService(db).create_post_moderation_notification(post=post, actor=_, hidden=True)
         except Exception:
             pass
+    return admin_get_post(post_id, _, db)
+
+
+@router.patch("/posts/{post_id}/featured", response_model=ReviewPostRead)
+def admin_update_post_featured(post_id: int, payload: PostFeaturedUpdate, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+    post = ReviewPostRepository(db).get(post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found.")
+    post.is_featured = payload.is_featured
+    db.add(post)
+    db.commit()
     return admin_get_post(post_id, _, db)
 
 
@@ -257,9 +341,89 @@ def admin_list_post_reports(
     return post_service(db).list_reports(status_value=status_value, skip=skip, limit=limit)
 
 
+@router.get("/reports")
+def admin_list_reports(
+    type: str | None = Query(default=None, pattern="^(post|comment|user|review)$"),
+    status_value: str | None = Query(default=None, alias="status"),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=100),
+    _: User = Depends(require_moderator_or_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    items: list[dict] = []
+    if type in {None, "post"}:
+        statement = select(PostReport).options(selectinload(PostReport.reporter), selectinload(PostReport.post)).order_by(PostReport.created_at.desc())
+        if status_value:
+            statement = statement.where(PostReport.status == status_value)
+        for report in db.scalars(statement).all():
+            items.append({
+                "id": report.id,
+                "type": "post",
+                "reporter": user_summary(report.reporter),
+                "target_id": report.post_id,
+                "target_label": report.post.title if report.post else f"Post #{report.post_id}",
+                "reason": report.reason,
+                "detail": report.description,
+                "status": report.status,
+                "created_at": report.created_at,
+            })
+    if type in {None, "comment"}:
+        statement = select(CommentReport).options(selectinload(CommentReport.reporter), selectinload(CommentReport.comment)).order_by(CommentReport.created_at.desc())
+        if status_value:
+            statement = statement.where(CommentReport.status == status_value)
+        for report in db.scalars(statement).all():
+            items.append({
+                "id": report.id,
+                "type": "comment",
+                "reporter": user_summary(report.reporter),
+                "target_id": report.comment_id,
+                "target_label": report.comment.content[:80] if report.comment else f"Comment #{report.comment_id}",
+                "reason": report.reason,
+                "detail": report.detail,
+                "status": report.status,
+                "created_at": report.created_at,
+            })
+    if type in {None, "review"}:
+        statement = select(PlaceReviewReport).options(selectinload(PlaceReviewReport.reporter), selectinload(PlaceReviewReport.review)).order_by(PlaceReviewReport.created_at.desc())
+        if status_value:
+            statement = statement.where(PlaceReviewReport.status == status_value)
+        for report in db.scalars(statement).all():
+            items.append({
+                "id": report.id,
+                "type": "review",
+                "reporter": user_summary(report.reporter),
+                "target_id": report.review_id,
+                "target_label": report.review.content[:80] if report.review else f"Review #{report.review_id}",
+                "reason": report.reason,
+                "detail": report.detail,
+                "status": report.status,
+                "created_at": report.created_at,
+            })
+    items.sort(key=lambda item: item["created_at"], reverse=True)
+    total = len(items)
+    return {"items": items[skip:skip + limit], "total": total, "skip": skip, "limit": limit}
+
+
 @router.patch("/reports/{report_id}/resolve", response_model=PostReportRead)
 def admin_resolve_report(report_id: int, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
     return post_service(db).resolve_report(report_id=report_id, status_value="resolved")
+
+
+@router.patch("/reports/{report_id}/status")
+def admin_update_report_status(
+    report_id: int,
+    payload: AdminReportResolvePayload,
+    _: User = Depends(require_moderator_or_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    model = {"post": PostReport, "comment": CommentReport, "review": PlaceReviewReport}[payload.type]
+    report = db.get(model, report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found.")
+    report.status = payload.status
+    db.add(report)
+    db.commit()
+    return {"id": report_id, "type": payload.type, "status": payload.status}
 
 
 @router.get("/comments", response_model=list[AdminCommentRead])
@@ -301,6 +465,7 @@ def admin_list_comments(
     return result
 
 
+@router.get("/comments/reported", response_model=list[CommentReportRead])
 @router.get("/comments/reports", response_model=list[CommentReportRead])
 def admin_list_comment_reports(
     status_value: str | None = Query(default=None, alias="status"),
