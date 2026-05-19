@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SEO } from "@/components/seo/SEO";
 import { type Place, type ReviewPost } from "@/services/api";
+import { getTrendingPlaces, getTrendingPosts } from "@/services/analyticsApi";
 import { getPlaces } from "@/services/placeApi";
 import { getCommunityFeed } from "@/services/postApi";
 import { fallbackSettings, getPublicSettings, type SiteSettings } from "@/services/settingsApi";
@@ -15,10 +16,14 @@ export function HomePage() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [posts, setPosts] = useState<ReviewPost[]>([]);
   const [settings, setSettings] = useState<SiteSettings>(fallbackSettings);
+  const [trendingPlaces, setTrendingPlaces] = useState<Place[]>([]);
+  const [trendingPosts, setTrendingPosts] = useState<ReviewPost[]>([]);
 
   useEffect(() => {
     void getPlaces().then(setPlaces).catch(() => setPlaces([]));
     void getCommunityFeed("latest").then(setPosts).catch(() => setPosts([]));
+    void getTrendingPlaces(3).then(setTrendingPlaces).catch(() => setTrendingPlaces([]));
+    void getTrendingPosts(3).then(setTrendingPosts).catch(() => setTrendingPosts([]));
     void getPublicSettings().then(setSettings).catch(() => setSettings(fallbackSettings));
   }, []);
 
@@ -134,7 +139,7 @@ export function HomePage() {
           </Link>
         </div>
         <div className="mt-6 grid gap-5 md:grid-cols-3">
-          {places.slice(0, settings.featured_place_limit).map((place) => (
+          {(trendingPlaces.length ? trendingPlaces : places).slice(0, settings.featured_place_limit).map((place) => (
             <Link key={place.id} to={`/places/${place.slug || place.id}`}>
               <Card className="h-full overflow-hidden transition-transform hover:-translate-y-1">
                   <img alt={place.name} className="h-56 w-full object-cover" src={place.images[0] ?? "https://placehold.co/1200x800?text=QuangBinhGo"} />
@@ -171,7 +176,7 @@ export function HomePage() {
                 <CardContent className="pt-5 text-sm text-muted-foreground">No community posts yet.</CardContent>
               </Card>
             )}
-            {posts.slice(0, 2).map((post) => (
+            {(trendingPosts.length ? trendingPosts : posts).slice(0, 2).map((post) => (
               <Card key={post.id}>
                 <CardContent className="flex gap-4 pt-5">
                   <img alt={post.title} className="h-24 w-24 rounded-md object-cover" src={post.images[0] ?? post.place?.images?.[0] ?? "https://placehold.co/400x400?text=QuangBinhGo"} />
@@ -180,7 +185,7 @@ export function HomePage() {
                       <Sparkles className="h-4 w-4 text-secondary" />
                       {post.place?.name ?? "Community"} - {new Date(post.created_at).toLocaleDateString()}
                     </p>
-                    <h3 className="mt-2 font-semibold">{post.title}</h3>
+                    <Link to={`/community/${post.slug || post.id}`}><h3 className="mt-2 font-semibold hover:text-primary">{post.title}</h3></Link>
                     <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{post.content}</p>
                   </div>
                 </CardContent>

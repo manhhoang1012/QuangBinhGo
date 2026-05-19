@@ -33,6 +33,7 @@ class Place(TimestampMixin, Base):
     facebook_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     rating_avg: Mapped[Decimal] = mapped_column(Numeric(3, 2), default=0, nullable=False)
     review_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    view_count: Mapped[int] = mapped_column(default=0, nullable=False)
 
     @property
     def cover_image(self) -> str | None:

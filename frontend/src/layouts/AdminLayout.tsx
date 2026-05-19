@@ -7,6 +7,7 @@ import { logout } from "@/services/authApi";
 
 const adminNavItems = [
   { label: "Dashboard", to: "/admin", icon: LayoutDashboard, roles: ["admin"] },
+  { label: "Analytics", to: "/admin/analytics", icon: BarChart3, roles: ["admin"] },
   { label: "Moderation", to: "/moderation", icon: ShieldCheck, roles: ["moderator", "admin"] },
   { label: "Reports", to: "/moderation/reports", icon: Flag, roles: ["moderator", "admin"] },
   { label: "Reported Posts", to: "/moderation/posts", icon: MessageSquare, roles: ["moderator", "admin"] },

@@ -1,9 +1,10 @@
 from fastapi import APIRouter
 
-from app.api.v1.routes import admin, ai, auth, health, itineraries, moderation, notification_ws, notifications, places, review_posts, settings, uploads, users
+from app.api.v1.routes import admin, ai, analytics, auth, health, itineraries, moderation, notification_ws, notifications, places, review_posts, settings, uploads, users
 
 api_router = APIRouter()
 api_router.include_router(ai.router, prefix="/ai", tags=["ai"])
+api_router.include_router(analytics.router, tags=["analytics"])
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(health.router, prefix="/health", tags=["health"])

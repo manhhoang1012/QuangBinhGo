@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Bookmark, Flag, Heart, MessageCircle, Share2, Trash2 } from "lucide-react";
+import { Bookmark, Eye, Flag, Heart, MessageCircle, Share2, Trash2 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { CommentThread } from "@/components/community/CommentThread";
@@ -137,6 +137,7 @@ export function PostDetailPage() {
             <span className="flex items-center gap-1.5 px-3 py-2"><MessageCircle className="h-4 w-4" />{post.comments_count}</span>
             <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => void savePost(post.id).then(loadPost)}><Bookmark className="h-4 w-4" />{post.saves_count}</Button>
             <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => void sharePost(post.id, post.slug).then(loadPost)}><Share2 className="h-4 w-4" />{post.share_count}</Button>
+            <span className="flex h-8 items-center gap-1.5 px-3"><Eye className="h-4 w-4" />{post.view_count ?? 0} lượt xem</span>
             <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => { const reason = window.prompt("Ly do bao cao?"); if (reason) void reportPost(post.id, reason); }}><Flag className="h-4 w-4" />Report</Button>
             {canDelete && <Button variant="ghost" className="h-8 gap-1.5 px-3 text-destructive" onClick={() => setConfirmDeleteOpen(true)}><Trash2 className="h-4 w-4" />Delete</Button>}
           </div>

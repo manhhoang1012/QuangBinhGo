@@ -5,6 +5,7 @@ import { RootLayout } from "@/layouts/RootLayout";
 import { AdminDashboardPage } from "@/pages/AdminDashboardPage";
 import { AdminCategoriesPage } from "@/pages/AdminCategoriesPage";
 import { AdminAuditLogsPage } from "@/pages/AdminAuditLogsPage";
+import { AdminAnalyticsPage } from "@/pages/AdminAnalyticsPage";
 import { AdminCommentsPage } from "@/pages/AdminCommentsPage";
 import { AdminPlacesPage } from "@/pages/AdminPlacesPage";
 import { AdminPostsPage } from "@/pages/AdminPostsPage";
@@ -274,6 +275,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
             <ModerationUserWarningsPage />
+          </ProtectedAdminRoute>
+        ),
+      },
+      {
+        path: "admin/analytics",
+        element: (
+          <ProtectedAdminRoute allowedRoles={["admin"]}>
+            <AdminAnalyticsPage />
           </ProtectedAdminRoute>
         ),
       },

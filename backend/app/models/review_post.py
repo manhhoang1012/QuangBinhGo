@@ -22,6 +22,7 @@ class ReviewPost(TimestampMixin, Base):
     is_draft: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_featured: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     share_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    view_count: Mapped[int] = mapped_column(default=0, nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="visible", nullable=False)
 
     author = relationship("User")

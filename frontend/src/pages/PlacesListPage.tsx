@@ -205,7 +205,7 @@ function PlaceCard({ place }: { place: Place }) {
           <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground"><MapPin className="h-4 w-4" />{place.address}</p>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm">
             <span className="font-medium">{place.ticket_price || "Giá vé đang cập nhật"}</span>
-            {place.distance_km != null && <span className="text-muted-foreground">{place.distance_km.toFixed(1)} km</span>}
+            <span className="text-muted-foreground">{place.distance_km != null ? `${place.distance_km.toFixed(1)} km` : `${place.view_count ?? 0} lượt xem`}</span>
           </div>
         </CardContent>
       </Card>

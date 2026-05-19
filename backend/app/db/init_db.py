@@ -2,10 +2,10 @@ from app.db.base import Base
 from app.db.session import SessionLocal
 from app.db.session import engine
 from app.core.slugify import slugify
-from app.models import AdminAuditLog, AuthToken, Category, CommentLike, CommentReport, Itinerary, ItineraryItem, ModerationAction, Notification, Place, PlaceReview, PlaceReviewHelpful, PlaceReviewReport, PostComment, PostHide, PostLike, PostReport, PostSave, ReviewPost, SiteSettings, User, UserFollow, UserWarning
+from app.models import AdminAuditLog, AuthToken, Category, CommentLike, CommentReport, ContentView, DailyAnalytics, Itinerary, ItineraryItem, ModerationAction, Notification, Place, PlaceReview, PlaceReviewHelpful, PlaceReviewReport, PostComment, PostHide, PostLike, PostReport, PostSave, ReviewPost, SearchLog, SiteSettings, User, UserFollow, UserWarning
 from sqlalchemy import inspect, text
 
-__all__ = ["AdminAuditLog", "AuthToken", "Category", "CommentLike", "CommentReport", "Itinerary", "ItineraryItem", "ModerationAction", "Notification", "Place", "PlaceReview", "PlaceReviewHelpful", "PlaceReviewReport", "PostComment", "PostHide", "PostLike", "PostReport", "PostSave", "ReviewPost", "SiteSettings", "User", "UserFollow", "UserWarning"]
+__all__ = ["AdminAuditLog", "AuthToken", "Category", "CommentLike", "CommentReport", "ContentView", "DailyAnalytics", "Itinerary", "ItineraryItem", "ModerationAction", "Notification", "Place", "PlaceReview", "PlaceReviewHelpful", "PlaceReviewReport", "PostComment", "PostHide", "PostLike", "PostReport", "PostSave", "ReviewPost", "SearchLog", "SiteSettings", "User", "UserFollow", "UserWarning"]
 
 
 def init_db() -> None:
@@ -67,6 +67,7 @@ def ensure_admin_content_columns() -> None:
             "website_url": "VARCHAR(500)",
             "facebook_url": "VARCHAR(500)",
             "review_count": "INTEGER DEFAULT 0 NOT NULL",
+            "view_count": "INTEGER DEFAULT 0 NOT NULL",
         },
         "review_posts": {
             "slug": "VARCHAR(255)",
@@ -78,6 +79,7 @@ def ensure_admin_content_columns() -> None:
             "is_draft": "BOOLEAN DEFAULT FALSE NOT NULL",
             "is_featured": "BOOLEAN DEFAULT FALSE NOT NULL",
             "share_count": "INTEGER DEFAULT 0 NOT NULL",
+            "view_count": "INTEGER DEFAULT 0 NOT NULL",
         },
         "post_comments": {
             "parent_comment_id": "INTEGER",
@@ -104,6 +106,7 @@ def ensure_admin_content_columns() -> None:
             connection.execute(text("UPDATE places SET tags = '[]' WHERE tags IS NULL"))
             connection.execute(text("UPDATE places SET videos = '[]' WHERE videos IS NULL"))
             connection.execute(text("UPDATE places SET review_count = 0 WHERE review_count IS NULL"))
+            connection.execute(text("UPDATE places SET view_count = 0 WHERE view_count IS NULL"))
         if "review_posts" in tables:
             connection.execute(text("UPDATE review_posts SET videos = '[]' WHERE videos IS NULL"))
             connection.execute(text("UPDATE review_posts SET hashtags = '[]' WHERE hashtags IS NULL"))
@@ -112,6 +115,7 @@ def ensure_admin_content_columns() -> None:
             connection.execute(text("UPDATE review_posts SET is_draft = FALSE WHERE is_draft IS NULL"))
             connection.execute(text("UPDATE review_posts SET is_featured = FALSE WHERE is_featured IS NULL"))
             connection.execute(text("UPDATE review_posts SET share_count = 0 WHERE share_count IS NULL"))
+            connection.execute(text("UPDATE review_posts SET view_count = 0 WHERE view_count IS NULL"))
         if "places" in tables:
             connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_places_slug_unique ON places (slug) WHERE slug IS NOT NULL"))
         if "review_posts" in tables:

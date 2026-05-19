@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.api.dependencies import get_optional_current_user
 from app.db.session import get_db
 from app.models.place import Place
 from app.models.review_post import ReviewPost
@@ -27,7 +28,9 @@ from app.schemas.itinerary import ItineraryRequest, ItineraryResponse
 from app.schemas.place import PlaceRead
 from app.schemas.review_post import ReviewPostRead
 from app.services.gemini_service import gemini_service
+from app.services.analytics_service import AnalyticsService
 from app.services.itinerary_service import ItineraryService
+from app.models.user import User
 
 router = APIRouter()
 
@@ -129,14 +132,14 @@ Use Vietnamese lowercase keywords where possible.
 
 
 @router.post("/search", response_model=AiSearchResponse)
-def ai_search(payload: AiSearchRequest, request: Request, db: Session = Depends(get_db)) -> AiSearchResponse:
+def ai_search(payload: AiSearchRequest, request: Request, current_user: User | None = Depends(get_optional_current_user), db: Session = Depends(get_db)) -> AiSearchResponse:
     rate_limit(request)
     intent, source = extract_intent(payload.query)
     raw_keywords = [*intent.get("keywords", []), *intent.get("tags", []), *intent.get("categories", []), payload.query]
     keywords = keywords_from_text(" ".join(str(item) for item in raw_keywords))
     places = [] if payload.type == "posts" else query_places(db, keywords, payload.top_k)
     posts = [] if payload.type == "places" else query_posts(db, keywords, payload.top_k)
-    return AiSearchResponse(
+    response = AiSearchResponse(
         query=payload.query,
         intent=intent,
         places=[build_place_read(place) for place in places],
@@ -144,6 +147,8 @@ def ai_search(payload: AiSearchRequest, request: Request, db: Session = Depends(
         results=[{"score": 1.0, "post": ReviewPostRead.model_validate(post)} for post in posts],
         source=source,
     )
+    AnalyticsService(db).track_search(query=payload.query, search_type="ai", filters={"type": payload.type, "top_k": payload.top_k}, result_count=len(places) + len(posts), user=current_user, request=request)
+    return response
 
 
 @router.post("/recommend/places", response_model=AiRecommendPlacesResponse)

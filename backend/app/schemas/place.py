@@ -27,6 +27,7 @@ class PlaceBase(BaseModel):
     facebook_url: str | None = Field(default=None, max_length=500)
     rating_avg: Decimal = Field(default=0, ge=0, le=5)
     review_count: int = Field(default=0, ge=0)
+    view_count: int = Field(default=0, ge=0)
 
 
 class PlaceCreate(PlaceBase):

@@ -1,6 +1,6 @@
 from typing import Literal
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -27,6 +27,7 @@ from app.schemas.review_post import (
     ReviewPostUpdate,
 )
 from app.services.embedding_service import EmbeddingService
+from app.services.analytics_service import AnalyticsService
 from app.services.review_post_service import ReviewPostService
 from app.services.upload_service import UploadService
 from app.services.vector_search_service import VectorSearchService
@@ -137,8 +138,20 @@ def create_review_post(post_create: ReviewPostCreate, current_user: User = Depen
 
 
 @router.get("/{slug_or_id}", response_model=ReviewPostRead)
-def get_review_post(slug_or_id: str, current_user: User | None = Depends(get_optional_current_user), service: ReviewPostService = Depends(get_review_post_service)) -> ReviewPostRead:
-    return service.get_post(post_id=slug_or_id, current_user=current_user)
+def get_review_post(
+    slug_or_id: str,
+    request: Request,
+    current_user: User | None = Depends(get_optional_current_user),
+    service: ReviewPostService = Depends(get_review_post_service),
+    db: Session = Depends(get_db),
+) -> ReviewPostRead:
+    post = service.get_post(post_id=slug_or_id, current_user=current_user)
+    try:
+        AnalyticsService(db).track_view(content_type="post", content_id=post.id, user=current_user, request=request)
+        post = service.get_post(post_id=post.id, current_user=current_user)
+    except Exception:
+        pass
+    return post
 
 
 @router.patch("/{post_id}", response_model=ReviewPostRead)

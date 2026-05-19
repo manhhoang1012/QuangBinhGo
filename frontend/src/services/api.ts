@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getSessionId } from "@/utils/session";
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1",
@@ -29,6 +30,7 @@ export const authStorage = {
 
 api.interceptors.request.use((config) => {
   const token = authStorage.getToken();
+  config.headers["X-Session-Id"] = getSessionId();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -130,6 +132,7 @@ export interface Place {
   facebook_url?: string | null;
   rating_avg: string | number;
   review_count?: number;
+  view_count?: number;
   cover_image?: string | null;
   distance_km?: number | null;
   related_places?: Place[];
@@ -157,6 +160,7 @@ export interface ReviewPost {
   comments_count: number;
   saves_count: number;
   share_count: number;
+  view_count?: number;
   created_at: string;
   updated_at: string;
 }

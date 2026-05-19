@@ -1,9 +1,9 @@
 from math import asin, cos, radians, sin, sqrt
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_current_user, require_admin
+from app.api.dependencies import get_current_user, get_optional_current_user, require_admin
 from app.core.content_safety import validate_not_spam
 from app.db.session import get_db
 from app.models.place import Place
@@ -13,6 +13,7 @@ from app.repositories.place_repository import PlaceRepository
 from app.schemas.place import PlaceCreate, PlaceDetailRead, PlaceMapRead, PlaceRead, PlaceUpdate, RouteSuggestionRead, RouteSuggestionRequest
 from app.schemas.review_post import PlaceReviewCreate, PlaceReviewListRead, PlaceReviewRead, PlaceReviewReportCreate, PlaceReviewReportRead, PlaceReviewUpdate, RatingSummary
 from app.services.place_service import PlaceService
+from app.services.analytics_service import AnalyticsService
 from app.services.upload_service import UploadService
 
 router = APIRouter()
@@ -169,6 +170,7 @@ def get_place_review_or_404(db: Session, place_id: int, review_id: int) -> Place
 
 @router.get("", response_model=list[PlaceRead])
 def list_places(
+    request: Request,
     q: str | None = Query(default=None, min_length=1),
     category: str | None = Query(default=None, min_length=1),
     tags: str | None = Query(default=None),
@@ -183,6 +185,7 @@ def list_places(
     page: int = Query(default=1, ge=1),
     search: str | None = Query(default=None, min_length=1),
     limit: int = Query(default=20, ge=1, le=100),
+    current_user: User | None = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
 ) -> list[PlaceRead]:
     keyword = q or search
@@ -241,7 +244,16 @@ def list_places(
         places.sort(key=lambda place: place.created_at or place.updated_at, reverse=True)
 
     start = (page - 1) * limit
-    return [build_place_read(place, distances.get(place.id), review_stats) for place in places[start : start + limit]]
+    result = [build_place_read(place, distances.get(place.id), review_stats) for place in places[start : start + limit]]
+    AnalyticsService(db).track_search(
+        query=keyword,
+        search_type="places",
+        filters={"category": category, "tags": tags, "region": region, "min_rating": min_rating, "max_price": max_price, "price_type": price_type, "near": bool(near_lat is not None and near_lng is not None), "sort": sort},
+        result_count=len(result),
+        user=current_user,
+        request=request,
+    )
+    return result
 
 
 @router.get("/semantic-search", response_model=list[PlaceRead])
@@ -496,6 +508,8 @@ def report_place_review(place_id: int, review_id: int, payload: PlaceReviewRepor
 @router.get("/{slug_or_id}", response_model=PlaceDetailRead)
 def get_place(
     slug_or_id: str,
+    request: Request,
+    current_user: User | None = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
 ) -> PlaceDetailRead:
     if slug_or_id.isdigit():
@@ -518,6 +532,12 @@ def get_place(
         **build_place_read(place, review_stats=review_stats).model_dump(),
         related_places=[build_place_read(item, review_stats=review_stats) for item in related],
     )
+    try:
+        AnalyticsService(db).track_view(content_type="place", content_id=place.id, user=current_user, request=request)
+        db.refresh(place)
+        detail.view_count = place.view_count
+    except Exception:
+        pass
     return detail
 
 

@@ -1,4 +1,4 @@
-import { Bookmark, EyeOff, Flag, Heart, MessageCircle, MoreHorizontal, Share2 } from "lucide-react";
+import { Bookmark, Eye, EyeOff, Flag, Heart, MessageCircle, MoreHorizontal, Share2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { FollowButton } from "@/components/social/FollowButton";
@@ -75,6 +75,10 @@ export function PostCard({ post, onLike, onSave, onShare, onReport, onHide }: Po
               {post.comments_count}
             </Button>
           </Link>
+          <span className="inline-flex h-8 items-center gap-1.5 px-3">
+            <Eye className="h-4 w-4" />
+            {post.view_count ?? 0}
+          </span>
           <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => onSave(post)}>
             <Bookmark className="h-4 w-4" />
             {post.saves_count}

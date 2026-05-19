@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CalendarDays, ExternalLink, Heart, ImagePlus, MapPin, Phone, Star, X } from "lucide-react";
+import { CalendarDays, ExternalLink, Eye, Heart, ImagePlus, MapPin, Phone, Star, X } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
@@ -187,6 +187,7 @@ export function PlaceDetailPage() {
               {Number(place.rating_avg).toFixed(1)} sao
             </Badge>
             <Badge>{place.review_count ?? 0} đánh giá</Badge>
+            <Badge className="bg-muted text-foreground"><Eye className="mr-1 h-3.5 w-3.5" />{place.view_count ?? 0} lượt xem</Badge>
             {place.tags?.map((tag) => (
               <Badge className="bg-muted text-foreground" key={tag}>
                 {tag}
