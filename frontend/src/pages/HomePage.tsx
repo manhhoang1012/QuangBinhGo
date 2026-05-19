@@ -11,6 +11,7 @@ import { getTrendingPlaces, getTrendingPosts } from "@/services/analyticsApi";
 import { getPlaces } from "@/services/placeApi";
 import { getCommunityFeed } from "@/services/postApi";
 import { fallbackSettings, getPublicSettings, type SiteSettings } from "@/services/settingsApi";
+import { optimizeImageUrl } from "@/utils/image";
 
 export function HomePage() {
   const [places, setPlaces] = useState<Place[]>([]);
@@ -53,7 +54,10 @@ export function HomePage() {
         <img
           alt="Quang Binh limestone landscape"
           className="absolute inset-0 h-full w-full object-cover"
-          src={settings.hero_background_image || fallbackSettings.hero_background_image || ""}
+          fetchPriority="high"
+          height={900}
+          src={optimizeImageUrl(settings.hero_background_image || fallbackSettings.hero_background_image || "", { width: 1600, crop: "limit" })}
+          width={1600}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/35 to-transparent" />
         <div className="relative mx-auto flex min-h-[680px] max-w-7xl flex-col justify-center px-4 pb-20 pt-16 sm:px-6 lg:px-8">
@@ -142,7 +146,14 @@ export function HomePage() {
           {(trendingPlaces.length ? trendingPlaces : places).slice(0, settings.featured_place_limit).map((place) => (
             <Link key={place.id} to={`/places/${place.slug || place.id}`}>
               <Card className="h-full overflow-hidden transition-transform hover:-translate-y-1">
-                  <img alt={place.name} className="h-56 w-full object-cover" src={place.images[0] ?? "https://placehold.co/1200x800?text=QuangBinhGo"} />
+                  <img
+                    alt={place.name}
+                    className="h-56 w-full object-cover"
+                    height={300}
+                    loading="lazy"
+                    src={optimizeImageUrl(place.cover_image || place.images[0] || "https://placehold.co/1200x800?text=QuangBinhGo", { width: 600, height: 400, crop: "fill" })}
+                    width={400}
+                  />
                 <CardContent className="pt-5">
                   <Badge>{place.category}</Badge>
                   <h3 className="mt-4 text-xl font-semibold">{place.name}</h3>
@@ -179,7 +190,14 @@ export function HomePage() {
             {(trendingPosts.length ? trendingPosts : posts).slice(0, 2).map((post) => (
               <Card key={post.id}>
                 <CardContent className="flex gap-4 pt-5">
-                  <img alt={post.title} className="h-24 w-24 rounded-md object-cover" src={post.images[0] ?? post.place?.images?.[0] ?? "https://placehold.co/400x400?text=QuangBinhGo"} />
+                  <img
+                    alt={post.title}
+                    className="h-24 w-24 rounded-md object-cover"
+                    height={96}
+                    loading="lazy"
+                    src={optimizeImageUrl(post.images[0] ?? post.place?.images?.[0] ?? "https://placehold.co/400x400?text=QuangBinhGo", { width: 200, height: 200, crop: "fill" })}
+                    width={96}
+                  />
                   <div>
                     <p className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Sparkles className="h-4 w-4 text-secondary" />

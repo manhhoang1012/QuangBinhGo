@@ -3,6 +3,7 @@ from html import escape
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy import select
 from starlette.responses import PlainTextResponse, Response
 from starlette.staticfiles import StaticFiles
@@ -20,6 +21,13 @@ from app.models.review_post import ReviewPost
 from pathlib import Path
 
 
+class CachedStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope) -> Response:
+        response = await super().get_response(path, scope)
+        response.headers.setdefault("Cache-Control", "public, max-age=2592000")
+        return response
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
@@ -34,6 +42,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
     app.add_middleware(
         SessionMiddleware,
         secret_key=settings.secret_key,
@@ -47,7 +56,7 @@ def create_app() -> FastAPI:
     app.include_router(ai.router, prefix="/api/ai", tags=["ai"])
     static_dir = Path(__file__).resolve().parents[1] / "static"
     static_dir.mkdir(parents=True, exist_ok=True)
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    app.mount("/static", CachedStaticFiles(directory=static_dir), name="static")
 
     @app.on_event("startup")
     def on_startup() -> None:

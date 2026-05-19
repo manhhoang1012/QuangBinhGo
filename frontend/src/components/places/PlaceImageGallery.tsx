@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { optimizeImageUrl } from "@/utils/image";
 
 interface PlaceImageGalleryProps {
   images: string[];
@@ -43,7 +44,9 @@ export function PlaceImageGallery({ images, placeName }: PlaceImageGalleryProps)
         <img
           alt={`${placeName} - ảnh ${selectedIndex + 1}`}
           className="aspect-[16/9] w-full object-cover"
-          src={images[selectedIndex]}
+          height={675}
+          src={optimizeImageUrl(images[selectedIndex], { width: 1200, crop: "limit" })}
+          width={1200}
         />
         {images.length > 1 && (
           <>
@@ -81,7 +84,14 @@ export function PlaceImageGallery({ images, placeName }: PlaceImageGalleryProps)
               onClick={() => setSelectedIndex(index)}
               type="button"
             >
-              <img alt={`${placeName} thumbnail ${index + 1}`} className="h-full w-full object-cover" src={image} />
+              <img
+                alt={`${placeName} thumbnail ${index + 1}`}
+                className="h-full w-full object-cover"
+                height={80}
+                loading="lazy"
+                src={optimizeImageUrl(image, { width: 240, height: 180, crop: "fill" })}
+                width={112}
+              />
             </button>
           ))}
         </div>

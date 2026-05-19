@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ReportModal } from "@/components/common/ReportModal";
 import { type ReviewPost } from "@/services/api";
+import { optimizeImageUrl } from "@/utils/image";
 
 interface PostCardProps {
   post: ReviewPost;
@@ -26,7 +27,14 @@ export function PostCard({ post, onLike, onSave, onShare, onReport, onHide }: Po
     <Card className="overflow-hidden">
       {hero && (
         <Link to={postUrl}>
-          <img alt={post.title || "Community post"} className="h-72 w-full object-cover" loading="lazy" src={hero} />
+          <img
+            alt={post.title || "Community post"}
+            className="h-72 w-full object-cover"
+            height={360}
+            loading="lazy"
+            src={optimizeImageUrl(hero, { width: 900, height: 540, crop: "fill" })}
+            width={900}
+          />
         </Link>
       )}
       {post.videos?.[0] && (
@@ -112,7 +120,9 @@ function AuthorLink({ user }: { user: { avatar_url?: string | null; full_name: s
   const content = (
     <>
       <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-        {user.avatar_url ? <img alt={user.full_name} className="h-full w-full object-cover" loading="lazy" src={user.avatar_url} /> : initials}
+        {user.avatar_url ? (
+          <img alt={user.full_name} className="h-full w-full object-cover" height={64} loading="lazy" src={optimizeImageUrl(user.avatar_url, { width: 128, height: 128, crop: "thumb" })} width={64} />
+        ) : initials}
       </span>
       <span className="font-medium text-foreground">{user.full_name}</span>
     </>

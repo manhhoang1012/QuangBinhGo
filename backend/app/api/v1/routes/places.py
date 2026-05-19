@@ -82,6 +82,7 @@ def build_place_read(
     place: Place,
     distance_km: float | None = None,
     review_stats: dict[int, tuple[float, int]] | None = None,
+    compact: bool = False,
 ) -> PlaceRead:
     data = PlaceRead.model_validate(place)
     if review_stats and place.id in review_stats:
@@ -89,6 +90,9 @@ def build_place_read(
         data.rating_avg = average_rating
         data.review_count = review_count
     data.cover_image = place.cover_image
+    if compact:
+        data.images = [place.cover_image] if place.cover_image else []
+        data.videos = []
     data.distance_km = round(distance_km, 2) if distance_km is not None else None
     return data
 
@@ -244,7 +248,7 @@ def list_places(
         places.sort(key=lambda place: place.created_at or place.updated_at, reverse=True)
 
     start = (page - 1) * limit
-    result = [build_place_read(place, distances.get(place.id), review_stats) for place in places[start : start + limit]]
+    result = [build_place_read(place, distances.get(place.id), review_stats, compact=True) for place in places[start : start + limit]]
     AnalyticsService(db).track_search(
         query=keyword,
         search_type="places",
@@ -266,7 +270,7 @@ def semantic_search_places(q: str = Query(..., min_length=1), limit: int = Query
         ).limit(limit)
     ).all()
     review_stats = get_review_stats(db, [place.id for place in places])
-    return [build_place_read(place, review_stats=review_stats) for place in places]
+    return [build_place_read(place, review_stats=review_stats, compact=True) for place in places]
 
 
 @router.get("/map", response_model=list[PlaceMapRead])
@@ -530,7 +534,7 @@ def get_place(
     review_stats = get_review_stats(db, [place.id, *[item.id for item in related]])
     detail = PlaceDetailRead(
         **build_place_read(place, review_stats=review_stats).model_dump(),
-        related_places=[build_place_read(item, review_stats=review_stats) for item in related],
+        related_places=[build_place_read(item, review_stats=review_stats, compact=True) for item in related],
     )
     try:
         AnalyticsService(db).track_view(content_type="place", content_id=place.id, user=current_user, request=request)

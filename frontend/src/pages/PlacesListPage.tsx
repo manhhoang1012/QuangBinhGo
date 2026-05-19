@@ -13,6 +13,7 @@ import { Pagination } from "@/components/common/Pagination";
 import { SEO } from "@/components/seo/SEO";
 import { type Place } from "@/services/api";
 import { getPlaces } from "@/services/placeApi";
+import { optimizeImageUrl } from "@/utils/image";
 
 const categories = [
   { label: "Tất cả", value: "" },
@@ -190,7 +191,14 @@ function PlaceCard({ place }: { place: Place }) {
   return (
     <Link to={`/places/${place.slug || place.id}`}>
       <Card className="h-full overflow-hidden transition-transform hover:-translate-y-1">
-        <img alt={place.name} className="h-56 w-full object-cover" src={place.cover_image || place.images?.[0] || imageFallback} />
+        <img
+          alt={place.name}
+          className="h-56 w-full object-cover"
+          height={300}
+          loading="lazy"
+          src={optimizeImageUrl(place.cover_image || place.images?.[0] || imageFallback, { width: 600, height: 400, crop: "fill" })}
+          width={400}
+        />
         <CardContent className="pt-5">
           <div className="flex items-center justify-between gap-3">
             <Badge>{place.category}</Badge>

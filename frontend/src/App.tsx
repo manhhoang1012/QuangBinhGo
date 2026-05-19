@@ -1,53 +1,68 @@
+import { lazy, Suspense, type ReactNode } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
+import { LoadingSkeleton } from "@/components/common/LoadingSkeleton";
 import { ProtectedAdminRoute } from "@/components/ProtectedAdminRoute";
 import { RootLayout } from "@/layouts/RootLayout";
-import { AdminDashboardPage } from "@/pages/AdminDashboardPage";
-import { AdminCategoriesPage } from "@/pages/AdminCategoriesPage";
-import { AdminAuditLogsPage } from "@/pages/AdminAuditLogsPage";
-import { AdminAnalyticsPage } from "@/pages/AdminAnalyticsPage";
-import { AdminCommentsPage } from "@/pages/AdminCommentsPage";
-import { AdminPlacesPage } from "@/pages/AdminPlacesPage";
-import { AdminPostsPage } from "@/pages/AdminPostsPage";
-import { AdminReportsPage } from "@/pages/AdminReportsPage";
-import { AdminReviewsPage } from "@/pages/AdminReviewsPage";
-import { AdminSettingsPage } from "@/pages/AdminSettingsPage";
-import { AdminUsersPage } from "@/pages/AdminUsersPage";
-import { AiHubPage } from "@/pages/AiHubPage";
-import { AiItineraryPage } from "@/pages/AiItineraryPage";
-import { AiChatPage } from "@/pages/AiChatPage";
-import { AiContentToolsPage } from "@/pages/AiContentToolsPage";
-import { AiRecommendationsPage } from "@/pages/AiRecommendationsPage";
-import { AiSearchPage } from "@/pages/AiSearchPage";
-import { CommunityFeedPage } from "@/pages/CommunityFeedPage";
-import { CreatePostPage } from "@/pages/CreatePostPage";
 import { HomePage } from "@/pages/HomePage";
-import { ItinerariesPage } from "@/pages/ItinerariesPage";
-import { ItineraryDetailPage } from "@/pages/ItineraryDetailPage";
-import { ItineraryEditPage } from "@/pages/ItineraryEditPage";
 import { LoginRegisterPage } from "@/pages/LoginRegisterPage";
-import { MapPage } from "@/pages/MapPage";
-import { ModerationActionsPage } from "@/pages/ModerationActionsPage";
-import { ModerationCommentsPage } from "@/pages/ModerationCommentsPage";
-import { ModerationDashboardPage } from "@/pages/ModerationDashboardPage";
-import { ModerationPostsPage } from "@/pages/ModerationPostsPage";
-import { ModerationReportsPage } from "@/pages/ModerationReportsPage";
-import { ModerationUserWarningsPage } from "@/pages/ModerationUserWarningsPage";
-import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
-import { MyPostsPage } from "@/pages/MyPostsPage";
-import { MyReviewsPage } from "@/pages/MyReviewsPage";
-import { NotificationsPage } from "@/pages/NotificationsPage";
-import { NotFoundPage } from "@/pages/NotFoundPage";
-import { OAuthCallbackPage } from "@/pages/OAuthCallbackPage";
-import { PlaceDetailPage } from "@/pages/PlaceDetailPage";
-import { PlacesListPage } from "@/pages/PlacesListPage";
-import { PostDetailPage } from "@/pages/PostDetailPage";
-import { ProfilePage } from "@/pages/ProfilePage";
-import { PublicProfilePage } from "@/pages/PublicProfilePage";
-import { ResetPasswordPage } from "@/pages/ResetPasswordPage";
-import { SavedPostsPage } from "@/pages/SavedPostsPage";
-import { SocialFilteredFeedPage } from "@/pages/SocialFilteredFeedPage";
-import { VerifyEmailPage } from "@/pages/VerifyEmailPage";
+
+const AdminDashboardPage = lazy(() => import("@/pages/AdminDashboardPage").then((module) => ({ default: module.AdminDashboardPage })));
+const AdminCategoriesPage = lazy(() => import("@/pages/AdminCategoriesPage").then((module) => ({ default: module.AdminCategoriesPage })));
+const AdminAuditLogsPage = lazy(() => import("@/pages/AdminAuditLogsPage").then((module) => ({ default: module.AdminAuditLogsPage })));
+const AdminAnalyticsPage = lazy(() => import("@/pages/AdminAnalyticsPage").then((module) => ({ default: module.AdminAnalyticsPage })));
+const AdminCommentsPage = lazy(() => import("@/pages/AdminCommentsPage").then((module) => ({ default: module.AdminCommentsPage })));
+const AdminPlacesPage = lazy(() => import("@/pages/AdminPlacesPage").then((module) => ({ default: module.AdminPlacesPage })));
+const AdminPostsPage = lazy(() => import("@/pages/AdminPostsPage").then((module) => ({ default: module.AdminPostsPage })));
+const AdminReportsPage = lazy(() => import("@/pages/AdminReportsPage").then((module) => ({ default: module.AdminReportsPage })));
+const AdminReviewsPage = lazy(() => import("@/pages/AdminReviewsPage").then((module) => ({ default: module.AdminReviewsPage })));
+const AdminSettingsPage = lazy(() => import("@/pages/AdminSettingsPage").then((module) => ({ default: module.AdminSettingsPage })));
+const AdminUsersPage = lazy(() => import("@/pages/AdminUsersPage").then((module) => ({ default: module.AdminUsersPage })));
+const AiHubPage = lazy(() => import("@/pages/AiHubPage").then((module) => ({ default: module.AiHubPage })));
+const AiItineraryPage = lazy(() => import("@/pages/AiItineraryPage").then((module) => ({ default: module.AiItineraryPage })));
+const AiChatPage = lazy(() => import("@/pages/AiChatPage").then((module) => ({ default: module.AiChatPage })));
+const AiContentToolsPage = lazy(() => import("@/pages/AiContentToolsPage").then((module) => ({ default: module.AiContentToolsPage })));
+const AiRecommendationsPage = lazy(() => import("@/pages/AiRecommendationsPage").then((module) => ({ default: module.AiRecommendationsPage })));
+const AiSearchPage = lazy(() => import("@/pages/AiSearchPage").then((module) => ({ default: module.AiSearchPage })));
+const CommunityFeedPage = lazy(() => import("@/pages/CommunityFeedPage").then((module) => ({ default: module.CommunityFeedPage })));
+const CreatePostPage = lazy(() => import("@/pages/CreatePostPage").then((module) => ({ default: module.CreatePostPage })));
+const ItinerariesPage = lazy(() => import("@/pages/ItinerariesPage").then((module) => ({ default: module.ItinerariesPage })));
+const ItineraryDetailPage = lazy(() => import("@/pages/ItineraryDetailPage").then((module) => ({ default: module.ItineraryDetailPage })));
+const ItineraryEditPage = lazy(() => import("@/pages/ItineraryEditPage").then((module) => ({ default: module.ItineraryEditPage })));
+const MapPage = lazy(() => import("@/pages/MapPage").then((module) => ({ default: module.MapPage })));
+const ModerationActionsPage = lazy(() => import("@/pages/ModerationActionsPage").then((module) => ({ default: module.ModerationActionsPage })));
+const ModerationCommentsPage = lazy(() => import("@/pages/ModerationCommentsPage").then((module) => ({ default: module.ModerationCommentsPage })));
+const ModerationDashboardPage = lazy(() => import("@/pages/ModerationDashboardPage").then((module) => ({ default: module.ModerationDashboardPage })));
+const ModerationPostsPage = lazy(() => import("@/pages/ModerationPostsPage").then((module) => ({ default: module.ModerationPostsPage })));
+const ModerationReportsPage = lazy(() => import("@/pages/ModerationReportsPage").then((module) => ({ default: module.ModerationReportsPage })));
+const ModerationUserWarningsPage = lazy(() => import("@/pages/ModerationUserWarningsPage").then((module) => ({ default: module.ModerationUserWarningsPage })));
+const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage").then((module) => ({ default: module.ForgotPasswordPage })));
+const MyPostsPage = lazy(() => import("@/pages/MyPostsPage").then((module) => ({ default: module.MyPostsPage })));
+const MyReviewsPage = lazy(() => import("@/pages/MyReviewsPage").then((module) => ({ default: module.MyReviewsPage })));
+const NotificationsPage = lazy(() => import("@/pages/NotificationsPage").then((module) => ({ default: module.NotificationsPage })));
+const NotFoundPage = lazy(() => import("@/pages/NotFoundPage").then((module) => ({ default: module.NotFoundPage })));
+const OAuthCallbackPage = lazy(() => import("@/pages/OAuthCallbackPage").then((module) => ({ default: module.OAuthCallbackPage })));
+const PlaceDetailPage = lazy(() => import("@/pages/PlaceDetailPage").then((module) => ({ default: module.PlaceDetailPage })));
+const PlacesListPage = lazy(() => import("@/pages/PlacesListPage").then((module) => ({ default: module.PlacesListPage })));
+const PostDetailPage = lazy(() => import("@/pages/PostDetailPage").then((module) => ({ default: module.PostDetailPage })));
+const ProfilePage = lazy(() => import("@/pages/ProfilePage").then((module) => ({ default: module.ProfilePage })));
+const PublicProfilePage = lazy(() => import("@/pages/PublicProfilePage").then((module) => ({ default: module.PublicProfilePage })));
+const ResetPasswordPage = lazy(() => import("@/pages/ResetPasswordPage").then((module) => ({ default: module.ResetPasswordPage })));
+const SavedPostsPage = lazy(() => import("@/pages/SavedPostsPage").then((module) => ({ default: module.SavedPostsPage })));
+const SocialFilteredFeedPage = lazy(() => import("@/pages/SocialFilteredFeedPage").then((module) => ({ default: module.SocialFilteredFeedPage })));
+const VerifyEmailPage = lazy(() => import("@/pages/VerifyEmailPage").then((module) => ({ default: module.VerifyEmailPage })));
+
+function RouteFallback() {
+  return (
+    <div className="mx-auto w-full max-w-6xl px-4 py-8">
+      <LoadingSkeleton count={3} className="h-32" />
+    </div>
+  );
+}
+
+function lazyRoute(element: ReactNode) {
+  return <Suspense fallback={<RouteFallback />}>{element}</Suspense>;
+}
 
 const router = createBrowserRouter([
   {
@@ -60,147 +75,147 @@ const router = createBrowserRouter([
       },
       {
         path: "places",
-        element: <PlacesListPage />,
+        element: lazyRoute(<PlacesListPage />),
       },
       {
         path: "map",
-        element: <MapPage />,
+        element: lazyRoute(<MapPage />),
       },
       {
         path: "places/map",
-        element: <MapPage />,
+        element: lazyRoute(<MapPage />),
       },
       {
         path: "places/:placeId",
-        element: <PlaceDetailPage />,
+        element: lazyRoute(<PlaceDetailPage />),
       },
       {
         path: "community",
-        element: <CommunityFeedPage />,
+        element: lazyRoute(<CommunityFeedPage />),
       },
       {
         path: "community/new",
-        element: <CreatePostPage />,
+        element: lazyRoute(<CreatePostPage />),
       },
       {
         path: "community/:postId",
-        element: <PostDetailPage />,
+        element: lazyRoute(<PostDetailPage />),
       },
       {
         path: "community/hashtag/:tag",
-        element: <SocialFilteredFeedPage mode="hashtag" />,
+        element: lazyRoute(<SocialFilteredFeedPage mode="hashtag" />),
       },
       {
         path: "community/place/:placeId",
-        element: <SocialFilteredFeedPage mode="place" />,
+        element: lazyRoute(<SocialFilteredFeedPage mode="place" />),
       },
       {
         path: "community/saved",
-        element: <SavedPostsPage />,
+        element: lazyRoute(<SavedPostsPage />),
       },
       {
         path: "community/following",
-        element: <CommunityFeedPage initialFeedType="following" />,
+        element: lazyRoute(<CommunityFeedPage initialFeedType="following" />),
       },
       {
         path: "profile",
-        element: <ProfilePage />,
+        element: lazyRoute(<ProfilePage />),
       },
       {
         path: "profile/edit",
-        element: <ProfilePage />,
+        element: lazyRoute(<ProfilePage />),
       },
       {
         path: "profile/change-password",
-        element: <ProfilePage />,
+        element: lazyRoute(<ProfilePage />),
       },
       {
         path: "notifications",
-        element: <NotificationsPage />,
+        element: lazyRoute(<NotificationsPage />),
       },
       {
         path: "u/:username",
-        element: <PublicProfilePage />,
+        element: lazyRoute(<PublicProfilePage />),
       },
       {
         path: "users/:username",
-        element: <PublicProfilePage />,
+        element: lazyRoute(<PublicProfilePage />),
       },
       {
         path: "u/:username/posts",
-        element: <PublicProfilePage />,
+        element: lazyRoute(<PublicProfilePage />),
       },
       {
         path: "saved",
-        element: <SavedPostsPage />,
+        element: lazyRoute(<SavedPostsPage />),
       },
       {
         path: "saved-posts",
-        element: <SavedPostsPage />,
+        element: lazyRoute(<SavedPostsPage />),
       },
       {
         path: "my-posts",
-        element: <MyPostsPage />,
+        element: lazyRoute(<MyPostsPage />),
       },
       {
         path: "my-reviews",
-        element: <MyReviewsPage />,
+        element: lazyRoute(<MyReviewsPage />),
       },
       {
         path: "ai",
-        element: <AiHubPage />,
+        element: lazyRoute(<AiHubPage />),
       },
       {
         path: "ai/search",
-        element: <AiSearchPage />,
+        element: lazyRoute(<AiSearchPage />),
       },
       {
         path: "ai/recommendations",
-        element: <AiRecommendationsPage />,
+        element: lazyRoute(<AiRecommendationsPage />),
       },
       {
         path: "ai/chat",
-        element: <AiChatPage />,
+        element: lazyRoute(<AiChatPage />),
       },
       {
         path: "ai/chatbot",
-        element: <AiChatPage />,
+        element: lazyRoute(<AiChatPage />),
       },
       {
         path: "ai/tools",
-        element: <AiContentToolsPage />,
+        element: lazyRoute(<AiContentToolsPage />),
       },
       {
         path: "ai/content-tools",
-        element: <AiContentToolsPage />,
+        element: lazyRoute(<AiContentToolsPage />),
       },
       {
         path: "ai/itinerary",
-        element: <AiItineraryPage />,
+        element: lazyRoute(<AiItineraryPage />),
       },
       {
         path: "ai-itinerary",
-        element: <AiItineraryPage />,
+        element: lazyRoute(<AiItineraryPage />),
       },
       {
         path: "itineraries",
-        element: <ItinerariesPage />,
+        element: lazyRoute(<ItinerariesPage />),
       },
       {
         path: "itineraries/new",
-        element: <ItineraryEditPage />,
+        element: lazyRoute(<ItineraryEditPage />),
       },
       {
         path: "itineraries/:id",
-        element: <ItineraryDetailPage />,
+        element: lazyRoute(<ItineraryDetailPage />),
       },
       {
         path: "itineraries/:id/edit",
-        element: <ItineraryEditPage />,
+        element: lazyRoute(<ItineraryEditPage />),
       },
       {
         path: "itineraries/shared/:shareSlug",
-        element: <ItineraryDetailPage shared />,
+        element: lazyRoute(<ItineraryDetailPage shared />),
       },
       {
         path: "login",
@@ -208,25 +223,25 @@ const router = createBrowserRouter([
       },
       {
         path: "forgot-password",
-        element: <ForgotPasswordPage />,
+        element: lazyRoute(<ForgotPasswordPage />),
       },
       {
         path: "reset-password",
-        element: <ResetPasswordPage />,
+        element: lazyRoute(<ResetPasswordPage />),
       },
       {
         path: "verify-email",
-        element: <VerifyEmailPage />,
+        element: lazyRoute(<VerifyEmailPage />),
       },
       {
         path: "oauth/callback",
-        element: <OAuthCallbackPage />,
+        element: lazyRoute(<OAuthCallbackPage />),
       },
       {
         path: "admin",
         element: (
           <ProtectedAdminRoute allowedRoles={["admin"]}>
-            <AdminDashboardPage />
+            {lazyRoute(<AdminDashboardPage />)}
           </ProtectedAdminRoute>
         ),
       },
@@ -234,7 +249,7 @@ const router = createBrowserRouter([
         path: "moderation",
         element: (
           <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
-            <ModerationDashboardPage />
+            {lazyRoute(<ModerationDashboardPage />)}
           </ProtectedAdminRoute>
         ),
       },
@@ -242,7 +257,7 @@ const router = createBrowserRouter([
         path: "moderation/reports",
         element: (
           <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
-            <ModerationReportsPage />
+            {lazyRoute(<ModerationReportsPage />)}
           </ProtectedAdminRoute>
         ),
       },
@@ -250,7 +265,7 @@ const router = createBrowserRouter([
         path: "moderation/posts",
         element: (
           <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
-            <ModerationPostsPage />
+            {lazyRoute(<ModerationPostsPage />)}
           </ProtectedAdminRoute>
         ),
       },
@@ -258,7 +273,7 @@ const router = createBrowserRouter([
         path: "moderation/comments",
         element: (
           <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
-            <ModerationCommentsPage />
+            {lazyRoute(<ModerationCommentsPage />)}
           </ProtectedAdminRoute>
         ),
       },
@@ -266,7 +281,7 @@ const router = createBrowserRouter([
         path: "moderation/actions",
         element: (
           <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
-            <ModerationActionsPage />
+            {lazyRoute(<ModerationActionsPage />)}
           </ProtectedAdminRoute>
         ),
       },
@@ -274,7 +289,7 @@ const router = createBrowserRouter([
         path: "moderation/users/:userId/warnings",
         element: (
           <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
-            <ModerationUserWarningsPage />
+            {lazyRoute(<ModerationUserWarningsPage />)}
           </ProtectedAdminRoute>
         ),
       },
@@ -282,7 +297,7 @@ const router = createBrowserRouter([
         path: "admin/analytics",
         element: (
           <ProtectedAdminRoute allowedRoles={["admin"]}>
-            <AdminAnalyticsPage />
+            {lazyRoute(<AdminAnalyticsPage />)}
           </ProtectedAdminRoute>
         ),
       },
@@ -290,7 +305,7 @@ const router = createBrowserRouter([
         path: "admin/users",
         element: (
           <ProtectedAdminRoute allowedRoles={["admin"]}>
-            <AdminUsersPage />
+            {lazyRoute(<AdminUsersPage />)}
           </ProtectedAdminRoute>
         ),
       },
@@ -298,7 +313,7 @@ const router = createBrowserRouter([
         path: "admin/places",
         element: (
           <ProtectedAdminRoute allowedRoles={["admin"]}>
-            <AdminPlacesPage />
+            {lazyRoute(<AdminPlacesPage />)}
           </ProtectedAdminRoute>
         ),
       },
@@ -306,7 +321,7 @@ const router = createBrowserRouter([
         path: "admin/posts",
         element: (
           <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
-            <AdminPostsPage />
+            {lazyRoute(<AdminPostsPage />)}
           </ProtectedAdminRoute>
         ),
       },
@@ -314,7 +329,7 @@ const router = createBrowserRouter([
         path: "admin/comments",
         element: (
           <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
-            <AdminCommentsPage />
+            {lazyRoute(<AdminCommentsPage />)}
           </ProtectedAdminRoute>
         ),
       },
@@ -322,7 +337,7 @@ const router = createBrowserRouter([
         path: "admin/reviews",
         element: (
           <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
-            <AdminReviewsPage />
+            {lazyRoute(<AdminReviewsPage />)}
           </ProtectedAdminRoute>
         ),
       },
@@ -330,7 +345,7 @@ const router = createBrowserRouter([
         path: "admin/reports",
         element: (
           <ProtectedAdminRoute allowedRoles={["moderator", "admin"]}>
-            <AdminReportsPage />
+            {lazyRoute(<AdminReportsPage />)}
           </ProtectedAdminRoute>
         ),
       },
@@ -338,7 +353,7 @@ const router = createBrowserRouter([
         path: "admin/categories",
         element: (
           <ProtectedAdminRoute allowedRoles={["admin"]}>
-            <AdminCategoriesPage />
+            {lazyRoute(<AdminCategoriesPage />)}
           </ProtectedAdminRoute>
         ),
       },
@@ -346,7 +361,7 @@ const router = createBrowserRouter([
         path: "admin/settings",
         element: (
           <ProtectedAdminRoute allowedRoles={["admin"]}>
-            <AdminSettingsPage />
+            {lazyRoute(<AdminSettingsPage />)}
           </ProtectedAdminRoute>
         ),
       },
@@ -354,13 +369,13 @@ const router = createBrowserRouter([
         path: "admin/audit-logs",
         element: (
           <ProtectedAdminRoute allowedRoles={["admin"]}>
-            <AdminAuditLogsPage />
+            {lazyRoute(<AdminAuditLogsPage />)}
           </ProtectedAdminRoute>
         ),
       },
       {
         path: "*",
-        element: <NotFoundPage />,
+        element: lazyRoute(<NotFoundPage />),
       },
     ],
   },

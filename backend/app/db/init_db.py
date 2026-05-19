@@ -129,6 +129,55 @@ def ensure_admin_content_columns() -> None:
             connection.execute(text("UPDATE place_reviews SET helpful_count = 0 WHERE helpful_count IS NULL"))
             connection.execute(text("UPDATE place_reviews SET report_count = 0 WHERE report_count IS NULL"))
 
+    ensure_performance_indexes()
+
+
+def ensure_performance_indexes() -> None:
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    columns_by_table = {
+        table_name: {column["name"] for column in inspector.get_columns(table_name)}
+        for table_name in tables
+    }
+    indexes = [
+        ("users", "ix_users_role_perf", ["role"]),
+        ("users", "ix_users_is_active_perf", ["is_active"]),
+        ("places", "ix_places_status_perf", ["status"]),
+        ("places", "ix_places_category_perf", ["category"]),
+        ("places", "ix_places_region_perf", ["region"]),
+        ("places", "ix_places_rating_avg_perf", ["rating_avg"]),
+        ("places", "ix_places_view_count_perf", ["view_count"]),
+        ("places", "ix_places_created_at_perf", ["created_at"]),
+        ("places", "ix_places_lat_lng_perf", ["latitude", "longitude"]),
+        ("review_posts", "ix_review_posts_status_perf", ["status"]),
+        ("review_posts", "ix_review_posts_visibility_perf", ["visibility"]),
+        ("review_posts", "ix_review_posts_created_at_perf", ["created_at"]),
+        ("review_posts", "ix_review_posts_view_count_perf", ["view_count"]),
+        ("review_posts", "ix_review_posts_counts_perf", ["like_count", "comment_count", "view_count"]),
+        ("post_comments", "ix_post_comments_status_perf", ["status"]),
+        ("post_comments", "ix_post_comments_created_at_perf", ["created_at"]),
+        ("place_reviews", "ix_place_reviews_rating_perf", ["rating"]),
+        ("place_reviews", "ix_place_reviews_status_perf", ["status"]),
+        ("place_reviews", "ix_place_reviews_created_at_perf", ["created_at"]),
+        ("reports", "ix_reports_target_perf", ["target_type", "target_id"]),
+        ("reports", "ix_reports_status_created_perf", ["status", "created_at"]),
+        ("notifications", "ix_notifications_recipient_read_perf", ["recipient_id", "is_read", "created_at"]),
+        ("notifications", "ix_notifications_deleted_perf", ["deleted_at"]),
+        ("content_views", "ix_content_views_target_created_perf", ["content_type", "content_id", "created_at"]),
+        ("content_views", "ix_content_views_session_perf", ["session_id", "created_at"]),
+        ("search_logs", "ix_search_logs_type_created_perf", ["search_type", "created_at"]),
+        ("search_logs", "ix_search_logs_query_perf", ["query"]),
+    ]
+    with engine.begin() as connection:
+        for table_name, index_name, column_names in indexes:
+            if table_name not in tables:
+                continue
+            available_columns = columns_by_table.get(table_name, set())
+            if not all(column_name in available_columns for column_name in column_names):
+                continue
+            column_sql = ", ".join(column_names)
+            connection.execute(text(f"CREATE INDEX IF NOT EXISTS {index_name} ON {table_name} ({column_sql})"))
+
 
 def ensure_seo_slugs() -> None:
     session = SessionLocal()
