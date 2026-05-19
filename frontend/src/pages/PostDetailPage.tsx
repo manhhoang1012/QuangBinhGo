@@ -14,6 +14,8 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { PostSkeleton } from "@/components/common/LoadingSkeleton";
 import { showToast } from "@/components/common/toastStore";
+import { SEO } from "@/components/seo/SEO";
+import { truncateMeta } from "@/components/seo/seoUtils";
 import { type Comment, type ReviewPost, type User } from "@/services/api";
 import { createComment, deleteComment, getComments, likeComment, reportComment, replyComment, unlikeComment, updateComment } from "@/services/commentApi";
 import { deleteReviewPost, getHashtagFeed, getReviewPost, likePost, reportPost, savePost, sharePost } from "@/services/postApi";
@@ -22,7 +24,7 @@ import { getCurrentProfile } from "@/services/userApi";
 export function PostDetailPage() {
   const { postId } = useParams();
   const navigate = useNavigate();
-  const numericPostId = Number(postId);
+  const slugOrId = postId ?? "";
   const [post, setPost] = useState<ReviewPost | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [relatedPosts, setRelatedPosts] = useState<ReviewPost[]>([]);
@@ -37,9 +39,9 @@ export function PostDetailPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [postData, commentData, me] = await Promise.all([
-        getReviewPost(numericPostId),
-        getComments(numericPostId),
+      const postData = await getReviewPost(slugOrId);
+      const [commentData, me] = await Promise.all([
+        getComments(postData.id),
         getCurrentProfile().catch(() => null),
       ]);
       setPost(postData);
@@ -54,19 +56,20 @@ export function PostDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [numericPostId]);
+  }, [slugOrId]);
 
   useEffect(() => {
-    if (Number.isFinite(numericPostId)) void loadPost();
-  }, [loadPost, numericPostId]);
+    if (slugOrId) void loadPost();
+  }, [loadPost, slugOrId]);
 
   const handleComment = async () => {
     if (!commentText.trim()) return;
+    if (!post) return;
     try {
-      await createComment(numericPostId, commentText.trim());
+      await createComment(post.id, commentText.trim());
       setCommentText("");
-      setComments(await getComments(numericPostId));
-      setPost(await getReviewPost(numericPostId));
+      setComments(await getComments(post.id));
+      setPost(await getReviewPost(post.id));
       setNotice("Da gui binh luan.");
       showToast("Đã gửi bình luận.", "success");
     } catch {
@@ -75,8 +78,9 @@ export function PostDetailPage() {
   };
 
   const handleDelete = async () => {
+    if (!post) return;
     try {
-      await deleteReviewPost(numericPostId);
+      await deleteReviewPost(post.id);
       showToast("Đã xóa bài viết.", "success");
       navigate("/community");
     } catch {
@@ -93,6 +97,14 @@ export function PostDetailPage() {
 
   return (
     <section className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
+      <SEO
+        title={`Review du lịch Quảng Bình của ${post.author.full_name}`}
+        description={truncateMeta(post.content)}
+        image={post.images?.[0] || post.place?.cover_image || post.place?.images?.[0]}
+        url={`/community/${post.slug || post.id}`}
+        type="article"
+        keywords={post.hashtags.join(", ")}
+      />
       <div className="mb-4"><Breadcrumb items={[{ label: "Trang chủ", to: "/" }, { label: "Cộng đồng", to: "/community" }, { label: post.title || "Bài viết" }]} /></div>
       <Card className="overflow-hidden">
         {post.images[0] && <img alt={post.title || "Community post"} className="max-h-[520px] w-full object-cover" src={post.images[0]} />}
@@ -124,7 +136,7 @@ export function PostDetailPage() {
             <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => void likePost(post.id).then(loadPost)}><Heart className="h-4 w-4" />{post.likes_count}</Button>
             <span className="flex items-center gap-1.5 px-3 py-2"><MessageCircle className="h-4 w-4" />{post.comments_count}</span>
             <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => void savePost(post.id).then(loadPost)}><Bookmark className="h-4 w-4" />{post.saves_count}</Button>
-            <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => void sharePost(post.id).then(loadPost)}><Share2 className="h-4 w-4" />{post.share_count}</Button>
+            <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => void sharePost(post.id, post.slug).then(loadPost)}><Share2 className="h-4 w-4" />{post.share_count}</Button>
             <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => { const reason = window.prompt("Ly do bao cao?"); if (reason) void reportPost(post.id, reason); }}><Flag className="h-4 w-4" />Report</Button>
             {canDelete && <Button variant="ghost" className="h-8 gap-1.5 px-3 text-destructive" onClick={() => setConfirmDeleteOpen(true)}><Trash2 className="h-4 w-4" />Delete</Button>}
           </div>
@@ -145,38 +157,38 @@ export function PostDetailPage() {
             currentUser={currentUser}
             key={comment.id}
             onDelete={async (commentId) => {
-              await deleteComment(numericPostId, commentId);
-              setComments(await getComments(numericPostId));
-              setPost(await getReviewPost(numericPostId));
+              await deleteComment(post.id, commentId);
+              setComments(await getComments(post.id));
+              setPost(await getReviewPost(post.id));
               setNotice("Da xoa binh luan.");
               showToast("Đã xóa bình luận.", "success");
             }}
             onEdit={async (commentId, content) => {
-              await updateComment(numericPostId, commentId, content);
-              setComments(await getComments(numericPostId));
+              await updateComment(post.id, commentId, content);
+              setComments(await getComments(post.id));
               setNotice("Da cap nhat binh luan.");
               showToast("Đã cập nhật bình luận.", "success");
             }}
             onLike={async (item) => {
               if (item.liked_by_me) {
-                await unlikeComment(numericPostId, item.id);
+                await unlikeComment(post.id, item.id);
               } else {
-                await likeComment(numericPostId, item.id);
+                await likeComment(post.id, item.id);
               }
-              setComments(await getComments(numericPostId));
+              setComments(await getComments(post.id));
             }}
             onReply={async (commentId, content) => {
               try {
-                await replyComment(numericPostId, commentId, content);
+                await replyComment(post.id, commentId, content);
               } catch {
                 setError("Bình luận có dấu hiệu spam. Vui lòng chỉnh sửa nội dung.");
                 return;
               }
-              setComments(await getComments(numericPostId));
-              setPost(await getReviewPost(numericPostId));
+              setComments(await getComments(post.id));
+              setPost(await getReviewPost(post.id));
             }}
             onReport={async (commentId, reason, detail) => {
-              await reportComment(numericPostId, commentId, { reason, detail });
+              await reportComment(post.id, commentId, { reason, detail });
               setNotice("Da gui bao cao binh luan.");
             }}
           />
@@ -188,7 +200,7 @@ export function PostDetailPage() {
           <h2 className="text-2xl font-semibold">Related posts</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {relatedPosts.map((item) => (
-              <Link className="rounded-md border p-4 hover:bg-muted/40" key={item.id} to={`/community/${item.id}`}>
+              <Link className="rounded-md border p-4 hover:bg-muted/40" key={item.id} to={`/community/${item.slug || item.id}`}>
                 <p className="font-medium">{item.title || "Community post"}</p>
                 <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.content}</p>
               </Link>

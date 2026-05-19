@@ -54,7 +54,7 @@ export async function createReviewPost(payload: CreatePostPayload) {
   return response.data;
 }
 
-export async function getReviewPost(postId: number) {
+export async function getReviewPost(postId: number | string) {
   const response = await api.get<ReviewPost>(`/review-posts/${postId}`);
   return response.data;
 }
@@ -106,9 +106,9 @@ export async function reportPost(postId: number, reason: string, description?: s
   return response.data;
 }
 
-export async function sharePost(postId: number) {
+export async function sharePost(postId: number, slug?: string | null) {
   await api.post(`/review-posts/${postId}/share`);
-  const url = `${window.location.origin}/community/${postId}`;
+  const url = `${window.location.origin}/community/${slug || postId}`;
   if (navigator.share) {
     return navigator.share({ title: "QuangBinhGo", url });
   }

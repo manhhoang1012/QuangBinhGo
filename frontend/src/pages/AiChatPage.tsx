@@ -5,6 +5,7 @@ import { Bot, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { SEO } from "@/components/seo/SEO";
 import { aiChat } from "@/services/aiApi";
 import { type Place, type ReviewPost } from "@/services/api";
 
@@ -48,6 +49,7 @@ export function AiChatPage() {
 
   return (
     <section className="mx-auto grid max-w-6xl gap-6 px-4 py-10 lg:grid-cols-[1fr_340px]">
+      <SEO title="Chatbot du lịch Quảng Bình | QuangBinhGo" description="Hỏi đáp nhanh về mùa đi, chi phí, địa điểm, ăn uống và lịch trình Quảng Bình." url="/ai/chatbot" />
       <div>
         <p className="flex items-center gap-2 text-sm font-medium text-primary"><Sparkles className="h-4 w-4" /> Gemini powered</p>
         <h1 className="mt-3 text-4xl font-semibold">Chatbot du lịch</h1>
@@ -78,7 +80,7 @@ export function AiChatPage() {
           <Card key={place.id}><CardContent className="pt-4"><Link className="font-medium hover:text-primary" to={`/places/${place.slug || place.id}`}>{place.name}</Link><p className="mt-1 text-sm text-muted-foreground">{place.category}</p></CardContent></Card>
         ))}
         {posts.map((post) => (
-          <Card key={post.id}><CardContent className="pt-4"><Link className="font-medium hover:text-primary" to={`/community/${post.id}`}>{post.title || "Bài review"}</Link><p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{post.content}</p></CardContent></Card>
+          <Card key={post.id}><CardContent className="pt-4"><Link className="font-medium hover:text-primary" to={`/community/${post.slug || post.id}`}>{post.title || "Bài review"}</Link><p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{post.content}</p></CardContent></Card>
         ))}
       </aside>
     </section>

@@ -74,7 +74,7 @@ export function SocialFilteredFeedPage({ mode }: { mode: "hashtag" | "place" }) 
             onLike={(item) => void likePost(item.id).then(refresh)}
             onReport={(item) => { const reason = window.prompt("Ly do bao cao?"); if (reason) void reportPost(item.id, reason); }}
             onSave={(item) => void savePost(item.id).then(refresh)}
-            onShare={(item) => void sharePost(item.id).then(refresh)}
+            onShare={(item) => void sharePost(item.id, item.slug).then(refresh)}
           />
         ))}
       </div>

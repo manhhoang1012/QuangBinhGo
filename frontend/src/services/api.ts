@@ -140,6 +140,7 @@ export interface Place {
 export interface ReviewPost {
   id: number;
   title: string;
+  slug?: string | null;
   content: string;
   place_id?: number | null;
   images: string[];

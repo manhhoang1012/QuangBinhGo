@@ -59,7 +59,7 @@ export function QuickSearch({ onNavigate }: { onNavigate?: () => void }) {
       />
       {open && query.trim().length >= 2 && (
         <div className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-md border bg-background shadow-lg">
-          {[...places.map((place) => ({ key: `place-${place.id}`, label: place.name, sub: place.address, to: `/places/${place.slug || place.id}` })), ...posts.map((post) => ({ key: `post-${post.id}`, label: post.title || "Bài viết cộng đồng", sub: post.author.full_name, to: `/community/${post.id}` }))].map((item) => (
+          {[...places.map((place) => ({ key: `place-${place.id}`, label: place.name, sub: place.address, to: `/places/${place.slug || place.id}` })), ...posts.map((post) => ({ key: `post-${post.id}`, label: post.title || "Bài viết cộng đồng", sub: post.author.full_name, to: `/community/${post.slug || post.id}` }))].map((item) => (
             <Link className="block px-3 py-2 text-sm hover:bg-muted" key={item.key} onClick={() => { setOpen(false); onNavigate?.(); }} to={item.to}>
               <p className="font-medium">{item.label}</p>
               <p className="line-clamp-1 text-xs text-muted-foreground">{item.sub}</p>

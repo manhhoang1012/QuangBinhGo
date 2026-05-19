@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { SEO } from "@/components/seo/SEO";
 import { aiRecommendPlaces } from "@/services/aiApi";
 import { type Place } from "@/services/api";
 
@@ -48,6 +49,7 @@ export function AiRecommendationsPage() {
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+      <SEO title="Gợi ý địa điểm Quảng Bình bằng AI | QuangBinhGo" description="Nhận gợi ý địa điểm du lịch Quảng Bình theo sở thích, ngân sách và phong cách đi." url="/ai/recommendations" />
       <div className="max-w-3xl">
         <Badge className="gap-2"><Sparkles className="h-3.5 w-3.5" /> Gemini powered</Badge>
         <h1 className="mt-4 text-4xl font-semibold">Gợi ý địa điểm bằng AI</h1>

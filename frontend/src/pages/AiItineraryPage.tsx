@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { SEO } from "@/components/seo/SEO";
 import { generateAiItinerary, saveAiItinerary, type AiItinerary } from "@/services/itineraryApi";
 
 const interestOptions = ["hang động", "biển", "ăn uống", "nghỉ dưỡng", "lịch sử", "thiên nhiên", "check-in", "gia đình", "phượt"];
@@ -85,6 +86,7 @@ export function AiItineraryPage() {
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+      <SEO title="Tạo lịch trình Quảng Bình bằng AI | QuangBinhGo" description="Tạo lịch trình du lịch Quảng Bình nhiều ngày theo ngân sách, sở thích và nhóm đi." url="/ai/itinerary" />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="flex items-center gap-2 text-sm font-medium text-primary"><Sparkles className="h-4 w-4" /> Gemini powered</p>

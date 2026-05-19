@@ -136,9 +136,9 @@ def create_review_post(post_create: ReviewPostCreate, current_user: User = Depen
     return service.create_post(current_user=current_user, post_create=post_create)
 
 
-@router.get("/{post_id}", response_model=ReviewPostRead)
-def get_review_post(post_id: int, current_user: User | None = Depends(get_optional_current_user), service: ReviewPostService = Depends(get_review_post_service)) -> ReviewPostRead:
-    return service.get_post(post_id=post_id, current_user=current_user)
+@router.get("/{slug_or_id}", response_model=ReviewPostRead)
+def get_review_post(slug_or_id: str, current_user: User | None = Depends(get_optional_current_user), service: ReviewPostService = Depends(get_review_post_service)) -> ReviewPostRead:
+    return service.get_post(post_id=slug_or_id, current_user=current_user)
 
 
 @router.patch("/{post_id}", response_model=ReviewPostRead)

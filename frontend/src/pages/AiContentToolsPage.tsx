@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { SEO } from "@/components/seo/SEO";
 import { generateCaption, generateHashtags, moderateContent, summarizeReview } from "@/services/aiApi";
 
 type ToolTab = "caption" | "summary" | "hashtags" | "moderate";
@@ -54,6 +55,7 @@ export function AiContentToolsPage() {
 
   return (
     <section className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+      <SEO title="Công cụ nội dung AI du lịch | QuangBinhGo" description="Tạo caption, hashtag, tóm tắt review và kiểm tra spam cho nội dung du lịch Quảng Bình." url="/ai/content-tools" />
       <p className="flex items-center gap-2 text-sm font-medium text-primary"><Sparkles className="h-4 w-4" /> Gemini powered</p>
       <h1 className="mt-3 text-4xl font-semibold">AI Content Tools</h1>
       <p className="mt-2 text-sm text-muted-foreground">Tạo caption, hashtag, tóm tắt review và kiểm tra spam/toxic cho nội dung cộng đồng.</p>

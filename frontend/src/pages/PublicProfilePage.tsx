@@ -6,6 +6,8 @@ import { FollowButton } from "@/components/social/FollowButton";
 import { SuggestedUsers } from "@/components/social/SuggestedUsers";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { SEO } from "@/components/seo/SEO";
+import { truncateMeta } from "@/components/seo/seoUtils";
 import { type ReviewPost, type User } from "@/services/api";
 import { getCurrentProfile, getFollowers, getFollowing, getPublicUserProfile, getUserPosts } from "@/services/userApi";
 
@@ -71,6 +73,13 @@ export function PublicProfilePage() {
 
   return (
     <section className="mx-auto max-w-5xl px-4 py-10">
+      <SEO
+        title={`${user.full_name} (@${user.username}) | QuangBinhGo`}
+        description={truncateMeta(user.bio || `Trang cá nhân du lịch Quảng Bình của ${user.full_name}.`)}
+        image={user.avatar_url}
+        url={`/u/${user.username}`}
+        type="profile"
+      />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <Button className="gap-2" onClick={() => navigate(-1)} variant="outline">
           <ArrowLeft className="h-4 w-4" />
@@ -135,7 +144,7 @@ export function PublicProfilePage() {
             <Card key={post.id}>
               <CardContent className="pt-5">
                 <p className="text-sm text-muted-foreground">{post.place?.name ?? "No place"}</p>
-                <Link to={`/community/${post.id}`}><h3 className="mt-2 font-semibold hover:text-primary">{post.title || "Community post"}</h3></Link>
+                <Link to={`/community/${post.slug || post.id}`}><h3 className="mt-2 font-semibold hover:text-primary">{post.title || "Community post"}</h3></Link>
                 <p className="mt-2 text-sm text-muted-foreground">{post.content}</p>
               </CardContent>
             </Card>

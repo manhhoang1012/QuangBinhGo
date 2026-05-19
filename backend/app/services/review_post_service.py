@@ -3,6 +3,7 @@ import re
 from fastapi import HTTPException, status
 
 from app.core.content_safety import validate_not_spam
+from app.core.slugify import slugify
 from app.models.review_post import PostComment
 from app.models.user import User
 from app.repositories.place_repository import PlaceRepository
@@ -51,18 +52,19 @@ class ReviewPostService:
         if post_create.place_id is not None and not self.place_repository.get(post_create.place_id):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found.")
         post_create.hashtags = self._normalize_hashtags(content=post_create.content, hashtags=post_create.hashtags)
+        post_create.slug = self._make_unique_slug(post_create.slug or self._slug_source(post_create.title, post_create.content))
         post = self.review_post_repository.create(user_id=current_user.id, post_create=post_create)
         self._index_post(post)
         return self.build_post_read(post, likes_count=0, comments_count=0, saves_count=0)
 
-    def get_post(self, *, post_id: int, current_user: User | None = None) -> ReviewPostRead:
+    def get_post(self, *, post_id: int | str, current_user: User | None = None) -> ReviewPostRead:
         post = self._get_existing_post(post_id)
         self._ensure_can_view(post, current_user=current_user)
         return self.build_post_read(
             post,
-            likes_count=self.review_post_repository.count_likes(post_id),
-            comments_count=self.review_post_repository.count_comments(post_id),
-            saves_count=self.review_post_repository.count_saves(post_id),
+            likes_count=self.review_post_repository.count_likes(post.id),
+            comments_count=self.review_post_repository.count_comments(post.id),
+            saves_count=self.review_post_repository.count_saves(post.id),
         )
 
     def update_post(self, *, post_id: int, current_user: User, post_update: ReviewPostUpdate) -> ReviewPostRead:
@@ -76,6 +78,10 @@ class ReviewPostService:
                 content=post_update.content if post_update.content is not None else post.content,
                 hashtags=post_update.hashtags if post_update.hashtags is not None else post.hashtags,
             )
+        if post_update.slug is not None:
+            post_update.slug = self._make_unique_slug(post_update.slug or self._slug_source(post_update.title or post.title, post_update.content or post.content), exclude_id=post.id)
+        elif (post_update.title or post_update.content) and not post.slug:
+            post_update.slug = self._make_unique_slug(self._slug_source(post_update.title or post.title, post_update.content or post.content), exclude_id=post.id)
         post = self.review_post_repository.update(post, post_update)
         self._index_post(post)
         return self.get_post(post_id=post.id, current_user=current_user)
@@ -342,8 +348,8 @@ class ReviewPostService:
             for post, likes_count, comments_count, saves_count in rows
         ]
 
-    def _get_existing_post(self, post_id: int):
-        post = self.review_post_repository.get(post_id)
+    def _get_existing_post(self, post_id: int | str):
+        post = self.review_post_repository.get(int(post_id)) if str(post_id).isdigit() else self.review_post_repository.get_by_slug(str(post_id))
         if not post:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review post not found.")
         return post
@@ -382,6 +388,22 @@ class ReviewPostService:
 
     def _normalize_tag(self, tag: str) -> str:
         return tag.strip().lower().lstrip("#")
+
+    def _slug_source(self, title: str | None, content: str) -> str:
+        source = (title or "").strip()
+        if source:
+            return source
+        words = re.findall(r"\w+", content, flags=re.UNICODE)
+        return " ".join(words[:12]) or "bai-review"
+
+    def _make_unique_slug(self, value: str, *, exclude_id: int | None = None) -> str:
+        base = slugify(value, fallback="bai-review")
+        candidate = base
+        suffix = 2
+        while self.review_post_repository.slug_exists(candidate, exclude_id=exclude_id):
+            candidate = f"{base}-{suffix}"
+            suffix += 1
+        return candidate
 
     def _normalize_hashtags(self, *, content: str, hashtags: list[str]) -> list[str]:
         parsed = re.findall(r"#([\w-]+)", content.lower())

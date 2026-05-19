@@ -13,6 +13,8 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingSkeleton } from "@/components/common/LoadingSkeleton";
 import { showToast } from "@/components/common/toastStore";
+import { SEO } from "@/components/seo/SEO";
+import { truncateMeta } from "@/components/seo/seoUtils";
 import { type Place, type PlaceReview, type ReviewPost, type User } from "@/services/api";
 import { createPlaceReview, deletePlaceReview, getFeaturedPlaceReviews, getPlace, getPlaceReviews, markReviewHelpful, reportPlaceReview, unmarkReviewHelpful, updatePlaceReview, uploadPlaceReviewImages, type PlaceReviewList } from "@/services/placeApi";
 import { getCommunityFeed } from "@/services/postApi";
@@ -155,6 +157,14 @@ export function PlaceDetailPage() {
 
   return (
     <section>
+      <SEO
+        title={`${place.name} - Du lịch Quảng Bình | QuangBinhGo`}
+        description={truncateMeta(place.description)}
+        image={place.cover_image || place.images?.[0]}
+        url={`/places/${place.slug || place.id}`}
+        type="article"
+        keywords={[place.name, place.category, ...(place.tags ?? [])].filter(Boolean).join(", ")}
+      />
       <div className="border-b bg-muted/30">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <Breadcrumb items={[{ label: "Trang chủ", to: "/" }, { label: "Khám phá", to: "/places" }, { label: place.name }]} />

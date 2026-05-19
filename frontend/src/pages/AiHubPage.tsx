@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { SEO } from "@/components/seo/SEO";
 
 const aiFeatures = [
   {
@@ -41,6 +42,12 @@ const aiFeatures = [
 export function AiHubPage() {
   return (
     <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <SEO
+        title="AI du lịch Quảng Bình | QuangBinhGo"
+        description="Tìm kiếm địa điểm, hỏi đáp du lịch, tạo lịch trình và nội dung review Quảng Bình bằng AI."
+        url="/ai"
+        keywords="AI du lịch Quảng Bình, lịch trình AI, tìm kiếm địa điểm AI"
+      />
       <div className="max-w-3xl">
         <Badge className="gap-2">
           <Sparkles className="h-3.5 w-3.5" />

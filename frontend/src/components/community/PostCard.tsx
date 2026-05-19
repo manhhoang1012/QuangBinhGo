@@ -18,10 +18,11 @@ interface PostCardProps {
 
 export function PostCard({ post, onLike, onSave, onShare, onReport, onHide }: PostCardProps) {
   const hero = post.images[0] ?? post.place?.cover_image ?? post.place?.images?.[0];
+  const postUrl = `/community/${post.slug || post.id}`;
   return (
     <Card className="overflow-hidden">
       {hero && (
-        <Link to={`/community/${post.id}`}>
+        <Link to={postUrl}>
           <img alt={post.title || "Community post"} className="h-72 w-full object-cover" loading="lazy" src={hero} />
         </Link>
       )}
@@ -49,7 +50,7 @@ export function PostCard({ post, onLike, onSave, onShare, onReport, onHide }: Po
           </div>
         </div>
 
-        <Link to={`/community/${post.id}`}>
+        <Link to={postUrl}>
           <h2 className="mt-2 text-2xl font-semibold hover:text-primary">{post.title || "Chia se tu cong dong"}</h2>
         </Link>
         <p className="mt-3 whitespace-pre-line leading-7 text-muted-foreground">{post.content}</p>
@@ -68,7 +69,7 @@ export function PostCard({ post, onLike, onSave, onShare, onReport, onHide }: Po
             <Heart className="h-4 w-4" />
             {post.likes_count}
           </Button>
-          <Link to={`/community/${post.id}`}>
+          <Link to={postUrl}>
             <Button variant="ghost" className="h-8 gap-1.5 px-3">
               <MessageCircle className="h-4 w-4" />
               {post.comments_count}

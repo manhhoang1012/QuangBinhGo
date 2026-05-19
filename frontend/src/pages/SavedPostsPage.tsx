@@ -37,7 +37,7 @@ export function SavedPostsPage() {
             onLike={(item) => void likePost(item.id).then(loadSaved)}
             onReport={(item) => { const reason = window.prompt("Ly do bao cao?"); if (reason) void reportPost(item.id, reason); }}
             onSave={(item) => void savePost(item.id).then(loadSaved)}
-            onShare={(item) => void sharePost(item.id).then(loadSaved)}
+            onShare={(item) => void sharePost(item.id, item.slug).then(loadSaved)}
           />
         ))}
       </div>

@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingSkeleton } from "@/components/common/LoadingSkeleton";
 import { Pagination } from "@/components/common/Pagination";
+import { SEO } from "@/components/seo/SEO";
 import { type Place } from "@/services/api";
 import { getPlaces } from "@/services/placeApi";
 
@@ -112,6 +113,12 @@ export function PlacesListPage() {
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <SEO
+        title="Khám phá địa điểm du lịch Quảng Bình | QuangBinhGo"
+        description="Tìm kiếm địa điểm du lịch Quảng Bình theo danh mục, rating, giá vé và vị trí gần bạn."
+        url="/places"
+        keywords="địa điểm du lịch Quảng Bình, hang động, biển Quảng Bình, Phong Nha, Nhật Lệ"
+      />
       <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr]">
         <div>
           <Badge>Explore Quang Binh</Badge>

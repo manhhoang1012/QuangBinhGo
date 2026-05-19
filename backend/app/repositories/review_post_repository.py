@@ -30,6 +30,23 @@ class ReviewPostRepository:
         )
         return self.db.scalar(statement)
 
+    def get_by_slug(self, slug: str) -> ReviewPost | None:
+        statement = (
+            select(ReviewPost)
+            .where(ReviewPost.slug == slug)
+            .options(
+                selectinload(ReviewPost.author),
+                selectinload(ReviewPost.place),
+            )
+        )
+        return self.db.scalar(statement)
+
+    def slug_exists(self, slug: str, *, exclude_id: int | None = None) -> bool:
+        statement = select(func.count(ReviewPost.id)).where(ReviewPost.slug == slug)
+        if exclude_id is not None:
+            statement = statement.where(ReviewPost.id != exclude_id)
+        return bool(self.db.scalar(statement))
+
     def feed(
         self,
         *,

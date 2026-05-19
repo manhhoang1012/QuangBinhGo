@@ -11,6 +11,7 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { InfiniteScrollLoader } from "@/components/common/InfiniteScrollLoader";
 import { PostSkeleton } from "@/components/common/LoadingSkeleton";
 import { showToast } from "@/components/common/toastStore";
+import { SEO } from "@/components/seo/SEO";
 import { type ReviewPost } from "@/services/api";
 import { getCommunityFeed, hidePost, likePost, reportPost, savePost, sharePost, type FeedType } from "@/services/postApi";
 
@@ -82,6 +83,12 @@ export function CommunityFeedPage({ initialFeedType = "latest" }: { initialFeedT
 
   return (
     <section className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+      <SEO
+        title="Cộng đồng review du lịch Quảng Bình | QuangBinhGo"
+        description="Đọc review du lịch Quảng Bình từ cộng đồng, chia sẻ trải nghiệm, ảnh, mẹo đi chơi và địa điểm đáng thử."
+        url="/community"
+        keywords="review du lịch Quảng Bình, cộng đồng du lịch, kinh nghiệm Quảng Bình"
+      />
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <Badge>Community feed</Badge>
@@ -113,7 +120,7 @@ export function CommunityFeedPage({ initialFeedType = "latest" }: { initialFeedT
               onLike={(item) => void likePost(item.id).then(refreshCounts).catch(() => setError("Please sign in before liking posts."))}
               onReport={(item) => void report(item).catch(() => setError("Could not report this post."))}
               onSave={(item) => void savePost(item.id).then(() => { showToast("Đã lưu bài viết.", "success"); return refreshCounts(); }).catch(() => setError("Please sign in before saving posts."))}
-              onShare={(item) => void sharePost(item.id).then(() => { showToast("Đã sao chép/chia sẻ liên kết.", "success"); return refreshCounts(); }).catch(() => setError("Could not share this post."))}
+              onShare={(item) => void sharePost(item.id, item.slug).then(() => { showToast("Đã sao chép/chia sẻ liên kết.", "success"); return refreshCounts(); }).catch(() => setError("Could not share this post."))}
             />
           ))}
         </div>
@@ -126,3 +133,4 @@ export function CommunityFeedPage({ initialFeedType = "latest" }: { initialFeedT
     </section>
   );
 }
+

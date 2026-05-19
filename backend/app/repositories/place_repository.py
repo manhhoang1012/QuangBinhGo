@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.place import Place
@@ -31,6 +31,15 @@ class PlaceRepository:
 
     def get(self, place_id: int) -> Place | None:
         return self.db.get(Place, place_id)
+
+    def get_by_slug(self, slug: str) -> Place | None:
+        return self.db.scalar(select(Place).where(Place.slug == slug))
+
+    def slug_exists(self, slug: str, *, exclude_id: int | None = None) -> bool:
+        statement = select(func.count(Place.id)).where(Place.slug == slug)
+        if exclude_id is not None:
+            statement = statement.where(Place.id != exclude_id)
+        return bool(self.db.scalar(statement))
 
     def create(self, place_create: PlaceCreate) -> Place:
         place = Place(**place_create.model_dump())

@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { SEO } from "@/components/seo/SEO";
+import { truncateMeta } from "@/components/seo/seoUtils";
 import {
   deleteItinerary,
   getItinerary,
@@ -44,6 +46,12 @@ export function ItineraryDetailPage({ shared = false }: { shared?: boolean }) {
 
   return (
     <section className="mx-auto max-w-5xl px-4 py-10">
+      <SEO
+        title={`${itinerary.title} | Lịch trình Quảng Bình | QuangBinhGo`}
+        description={truncateMeta(itinerary.description || `Lịch trình ${itinerary.total_days} ngày khám phá Quảng Bình.`)}
+        url={shared && itinerary.share_slug ? `/itineraries/shared/${itinerary.share_slug}` : `/itineraries/${itinerary.id}`}
+        type="article"
+      />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground">

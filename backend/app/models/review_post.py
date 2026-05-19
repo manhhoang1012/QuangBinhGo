@@ -12,6 +12,7 @@ class ReviewPost(TimestampMixin, Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
     place_id: Mapped[int | None] = mapped_column(ForeignKey("places.id", ondelete="SET NULL"), index=True, nullable=True)
     title: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    slug: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     images: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     videos: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)

@@ -5,6 +5,7 @@ import { Search, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { SEO } from "@/components/seo/SEO";
 import { aiRecommendPlaces, aiSearch, type AiSearchResponse } from "@/services/aiApi";
 
 export function AiSearchPage() {
@@ -36,6 +37,7 @@ export function AiSearchPage() {
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+      <SEO title="Tìm kiếm AI du lịch Quảng Bình | QuangBinhGo" description="Tìm địa điểm và bài review du lịch Quảng Bình bằng câu hỏi tự nhiên." url="/ai/search" />
       <div className="max-w-3xl">
         <p className="flex items-center gap-2 text-sm font-medium text-primary"><Sparkles className="h-4 w-4" /> Gemini powered</p>
         <h1 className="mt-3 text-4xl font-semibold">AI Search</h1>
@@ -78,7 +80,7 @@ export function AiSearchPage() {
             <Card key={post.id}>
               <CardContent className="pt-5">
                 <p className="text-sm text-muted-foreground">{post.place?.name ?? "Community"} · {new Date(post.created_at).toLocaleDateString("vi-VN")}</p>
-                <Link to={`/community/${post.id}`}><h3 className="mt-2 font-semibold hover:text-primary">{post.title || "Bài viết trải nghiệm"}</h3></Link>
+                <Link to={`/community/${post.slug || post.id}`}><h3 className="mt-2 font-semibold hover:text-primary">{post.title || "Bài viết trải nghiệm"}</h3></Link>
                 <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{post.content}</p>
               </CardContent>
             </Card>

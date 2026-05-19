@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { SEO } from "@/components/seo/SEO";
 import { type Place, type ReviewPost } from "@/services/api";
 import { getPlaces } from "@/services/placeApi";
 import { getCommunityFeed } from "@/services/postApi";
@@ -37,6 +38,12 @@ export function HomePage() {
 
   return (
     <>
+      <SEO
+        title="QuangBinhGo - Khám phá du lịch Quảng Bình"
+        description="Khám phá địa điểm du lịch Quảng Bình, đọc review cộng đồng, tạo lịch trình và tìm gợi ý bằng AI."
+        url="/"
+        keywords="du lịch Quảng Bình, Phong Nha, Nhật Lệ, review du lịch, lịch trình Quảng Bình"
+      />
       <section className="relative min-h-[680px] overflow-hidden">
         <img
           alt="Quang Binh limestone landscape"
@@ -128,7 +135,7 @@ export function HomePage() {
         </div>
         <div className="mt-6 grid gap-5 md:grid-cols-3">
           {places.slice(0, settings.featured_place_limit).map((place) => (
-            <Link key={place.id} to={`/places/${place.id}`}>
+            <Link key={place.id} to={`/places/${place.slug || place.id}`}>
               <Card className="h-full overflow-hidden transition-transform hover:-translate-y-1">
                   <img alt={place.name} className="h-56 w-full object-cover" src={place.images[0] ?? "https://placehold.co/1200x800?text=QuangBinhGo"} />
                 <CardContent className="pt-5">

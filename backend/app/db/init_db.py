@@ -1,5 +1,7 @@
 from app.db.base import Base
+from app.db.session import SessionLocal
 from app.db.session import engine
+from app.core.slugify import slugify
 from app.models import AdminAuditLog, AuthToken, Category, CommentLike, CommentReport, Itinerary, ItineraryItem, ModerationAction, Notification, Place, PlaceReview, PlaceReviewHelpful, PlaceReviewReport, PostComment, PostHide, PostLike, PostReport, PostSave, ReviewPost, SiteSettings, User, UserFollow, UserWarning
 from sqlalchemy import inspect, text
 
@@ -10,6 +12,7 @@ def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     ensure_user_profile_columns()
     ensure_admin_content_columns()
+    ensure_seo_slugs()
 
 
 def ensure_user_profile_columns() -> None:
@@ -66,6 +69,7 @@ def ensure_admin_content_columns() -> None:
             "review_count": "INTEGER DEFAULT 0 NOT NULL",
         },
         "review_posts": {
+            "slug": "VARCHAR(255)",
             "status": "VARCHAR(30) DEFAULT 'visible' NOT NULL",
             "videos": "JSON DEFAULT '[]' NOT NULL",
             "hashtags": "JSON DEFAULT '[]' NOT NULL",
@@ -108,6 +112,10 @@ def ensure_admin_content_columns() -> None:
             connection.execute(text("UPDATE review_posts SET is_draft = FALSE WHERE is_draft IS NULL"))
             connection.execute(text("UPDATE review_posts SET is_featured = FALSE WHERE is_featured IS NULL"))
             connection.execute(text("UPDATE review_posts SET share_count = 0 WHERE share_count IS NULL"))
+        if "places" in tables:
+            connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_places_slug_unique ON places (slug) WHERE slug IS NOT NULL"))
+        if "review_posts" in tables:
+            connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_review_posts_slug_unique ON review_posts (slug) WHERE slug IS NOT NULL"))
         if "post_comments" in tables:
             connection.execute(text("UPDATE post_comments SET status = 'visible' WHERE status IS NULL"))
             connection.execute(text("UPDATE post_comments SET report_count = 0 WHERE report_count IS NULL"))
@@ -116,3 +124,39 @@ def ensure_admin_content_columns() -> None:
             connection.execute(text("UPDATE place_reviews SET status = 'visible' WHERE status IS NULL"))
             connection.execute(text("UPDATE place_reviews SET helpful_count = 0 WHERE helpful_count IS NULL"))
             connection.execute(text("UPDATE place_reviews SET report_count = 0 WHERE report_count IS NULL"))
+
+
+def ensure_seo_slugs() -> None:
+    session = SessionLocal()
+    try:
+        used_place_slugs: set[str] = set()
+        for place in session.query(Place).order_by(Place.id.asc()).all():
+            if place.slug:
+                used_place_slugs.add(place.slug)
+                continue
+            base = slugify(place.name, fallback="dia-diem")
+            place.slug = _next_slug(base, used_place_slugs)
+            used_place_slugs.add(place.slug)
+
+        used_post_slugs: set[str] = set()
+        for post in session.query(ReviewPost).order_by(ReviewPost.id.asc()).all():
+            if post.slug:
+                used_post_slugs.add(post.slug)
+                continue
+            source = post.title or " ".join((post.content or "").split()[:12])
+            base = slugify(source, fallback="bai-review")
+            post.slug = _next_slug(base, used_post_slugs)
+            used_post_slugs.add(post.slug)
+
+        session.commit()
+    finally:
+        session.close()
+
+
+def _next_slug(base: str, used: set[str]) -> str:
+    candidate = base
+    suffix = 2
+    while candidate in used:
+        candidate = f"{base}-{suffix}"
+        suffix += 1
+    return candidate

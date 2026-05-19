@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     facebook_client_id: str = ""
     facebook_client_secret: str = ""
+    frontend_base_url: str | None = Field(default=None, alias="FRONTEND_BASE_URL")
     frontend_url: str = "http://localhost:5173"
     backend_url: str = "http://localhost:8000"
 

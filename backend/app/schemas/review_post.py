@@ -10,6 +10,7 @@ VISIBILITIES = {"public", "followers", "private"}
 
 class ReviewPostCreate(BaseModel):
     title: str = Field(default="", max_length=255)
+    slug: str | None = Field(default=None, max_length=255)
     content: str = Field(min_length=1)
     place_id: int | None = Field(default=None, gt=0)
     images: list[str] = Field(default_factory=list)
@@ -22,6 +23,7 @@ class ReviewPostCreate(BaseModel):
 
 class ReviewPostUpdate(BaseModel):
     title: str | None = Field(default=None, max_length=255)
+    slug: str | None = Field(default=None, max_length=255)
     content: str | None = Field(default=None, min_length=1)
     place_id: int | None = Field(default=None, gt=0)
     images: list[str] | None = Field(default=None, max_length=10)
@@ -98,6 +100,7 @@ class CommentRead(BaseModel):
 class ReviewPostRead(BaseModel):
     id: int
     title: str
+    slug: str | None = None
     content: str
     place_id: int | None = None
     images: list[str]
