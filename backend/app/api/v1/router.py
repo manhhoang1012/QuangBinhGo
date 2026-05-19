@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1.routes import admin, ai, analytics, auth, health, itineraries, moderation, notification_ws, notifications, places, review_posts, settings, uploads, users
+from app.api.v1.routes import admin, ai, analytics, auth, health, itineraries, moderation, notification_ws, notifications, places, reports, review_posts, settings, uploads, users
 
 api_router = APIRouter()
 api_router.include_router(ai.router, prefix="/ai", tags=["ai"])
@@ -13,6 +13,7 @@ api_router.include_router(moderation.router, prefix="/moderation", tags=["modera
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(notification_ws.router, prefix="/ws", tags=["websocket"])
 api_router.include_router(places.router, prefix="/places", tags=["places"])
+api_router.include_router(reports.router, tags=["reports"])
 api_router.include_router(review_posts.router, prefix="/review-posts", tags=["review-posts"])
 api_router.include_router(settings.router, prefix="/settings", tags=["settings"])
 api_router.include_router(uploads.router, prefix="/uploads", tags=["uploads"])

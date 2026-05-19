@@ -1,10 +1,12 @@
 import { Bookmark, Eye, EyeOff, Flag, Heart, MessageCircle, MoreHorizontal, Share2 } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { FollowButton } from "@/components/social/FollowButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ReportModal } from "@/components/common/ReportModal";
 import { type ReviewPost } from "@/services/api";
 
 interface PostCardProps {
@@ -12,13 +14,14 @@ interface PostCardProps {
   onLike: (post: ReviewPost) => void;
   onSave: (post: ReviewPost) => void;
   onShare: (post: ReviewPost) => void;
-  onReport: (post: ReviewPost) => void;
+  onReport?: (post: ReviewPost) => void;
   onHide?: (post: ReviewPost) => void;
 }
 
 export function PostCard({ post, onLike, onSave, onShare, onReport, onHide }: PostCardProps) {
   const hero = post.images[0] ?? post.place?.cover_image ?? post.place?.images?.[0];
   const postUrl = `/community/${post.slug || post.id}`;
+  const [reportOpen, setReportOpen] = useState(false);
   return (
     <Card className="overflow-hidden">
       {hero && (
@@ -93,12 +96,13 @@ export function PostCard({ post, onLike, onSave, onShare, onReport, onHide }: Po
               Hide
             </Button>
           )}
-          <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => onReport(post)}>
+          <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => onReport ? onReport(post) : setReportOpen(true)}>
             <Flag className="h-4 w-4" />
             Report
           </Button>
         </div>
       </CardContent>
+      <ReportModal isOpen={reportOpen} onClose={() => setReportOpen(false)} targetId={post.id} targetType="post" />
     </Card>
   );
 }

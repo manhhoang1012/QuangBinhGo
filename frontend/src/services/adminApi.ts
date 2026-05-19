@@ -1,4 +1,5 @@
 import { api, type Category, type Place, type ReviewPost, type User } from "@/services/api";
+import { getAdminReports as getUnifiedAdminReports, rejectReport as rejectUnifiedReport, resolveReport as resolveUnifiedReport, type ReportList, type ReportRead } from "@/services/reportApi";
 import { type PlacePayload } from "@/services/placeApi";
 import { uploadFiles } from "@/services/uploadApi";
 
@@ -16,24 +17,8 @@ export interface AdminStats {
   recent_activities: Array<{ type: string; title: string; actor: string; target: string; created_at: string }>;
 }
 
-export interface AdminReport {
-  id: number;
-  type: "post" | "comment" | "review" | "user";
-  reporter?: User | null;
-  target_id: number;
-  target_label: string;
-  reason: string;
-  detail?: string | null;
-  status: string;
-  created_at: string;
-}
-
-export interface AdminReportList {
-  items: AdminReport[];
-  total: number;
-  skip: number;
-  limit: number;
-}
+export type AdminReport = ReportRead;
+export type AdminReportList = ReportList;
 
 export interface AdminAuditLog {
   id: number;
@@ -177,14 +162,13 @@ export async function getAdminCommentReports(params: { status?: string; skip?: n
   return response.data;
 }
 
-export async function getAdminReports(params: { type?: string; status?: string; skip?: number; limit?: number } = {}) {
-  const response = await api.get<AdminReportList>("/admin/reports", { params });
-  return response.data;
+export async function getAdminReports(params: { type?: string; status?: string; reason?: string; skip?: number; limit?: number } = {}) {
+  return getUnifiedAdminReports({ ...params, page: params.skip && params.limit ? Math.floor(params.skip / params.limit) + 1 : undefined });
 }
 
-export async function resolveReport(id: number, data: { type: "post" | "comment" | "review"; status: "resolved" | "rejected" }) {
-  const response = await api.patch<{ id: number; type: string; status: string }>(`/admin/reports/${id}/status`, data);
-  return response.data;
+export async function resolveReport(id: number, data: { type?: "post" | "comment" | "review" | "user"; status: "resolved" | "rejected"; action?: "none" | "hide_content" | "delete_content" | "warn_user" | "block_user"; resolution_note?: string }) {
+  if (data.status === "resolved") return resolveUnifiedReport(id, { action: data.action ?? "none", resolution_note: data.resolution_note });
+  return rejectUnifiedReport(id, { resolution_note: data.resolution_note });
 }
 
 export async function getAdminAuditLogs(params: { action?: string; actor_id?: number; target_type?: string; page?: number; limit?: number } = {}) {

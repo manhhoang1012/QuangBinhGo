@@ -12,11 +12,12 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingSkeleton } from "@/components/common/LoadingSkeleton";
+import { ReportModal } from "@/components/common/ReportModal";
 import { showToast } from "@/components/common/toastStore";
 import { SEO } from "@/components/seo/SEO";
 import { truncateMeta } from "@/components/seo/seoUtils";
 import { type Place, type PlaceReview, type ReviewPost, type User } from "@/services/api";
-import { createPlaceReview, deletePlaceReview, getFeaturedPlaceReviews, getPlace, getPlaceReviews, markReviewHelpful, reportPlaceReview, unmarkReviewHelpful, updatePlaceReview, uploadPlaceReviewImages, type PlaceReviewList } from "@/services/placeApi";
+import { createPlaceReview, deletePlaceReview, getFeaturedPlaceReviews, getPlace, getPlaceReviews, markReviewHelpful, unmarkReviewHelpful, updatePlaceReview, uploadPlaceReviewImages, type PlaceReviewList } from "@/services/placeApi";
 import { getCommunityFeed } from "@/services/postApi";
 import { getCurrentProfile } from "@/services/userApi";
 
@@ -38,6 +39,7 @@ export function PlaceDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteReviewTarget, setDeleteReviewTarget] = useState<PlaceReview | null>(null);
+  const [reportReviewTarget, setReportReviewTarget] = useState<PlaceReview | null>(null);
 
   useEffect(() => {
     const loadPlace = async () => {
@@ -364,7 +366,7 @@ export function PlaceDetailPage() {
                       <Button variant="outline" onClick={() => void (review.helpful_by_me ? unmarkReviewHelpful(place.id, review.id) : markReviewHelpful(place.id, review.id)).then(reloadReviews)}>
                         Hữu ích ({review.helpful_count})
                       </Button>
-                      {currentUser?.id !== review.author.id && <Button variant="outline" onClick={() => { const reason = window.prompt("Lý do: false_info, spam, offensive, other", "false_info") as "false_info" | "spam" | "offensive" | "other" | null; if (reason) void reportPlaceReview(place.id, review.id, { reason }).then(() => setReviewNotice("Đã báo cáo đánh giá.")); }}>Báo cáo</Button>}
+                      {currentUser?.id !== review.author.id && <Button variant="outline" onClick={() => setReportReviewTarget(review)}>Báo cáo</Button>}
                     </div>
                   </CardContent>
                 </Card>
@@ -401,6 +403,15 @@ export function PlaceDetailPage() {
         onCancel={() => setDeleteReviewTarget(null)}
         onConfirm={() => deleteReviewTarget && void removeReview(deleteReviewTarget)}
       />
+      {reportReviewTarget && (
+        <ReportModal
+          isOpen={Boolean(reportReviewTarget)}
+          onClose={() => setReportReviewTarget(null)}
+          onSuccess={() => setReviewNotice("Đã báo cáo đánh giá.")}
+          targetId={reportReviewTarget.id}
+          targetType="review"
+        />
+      )}
     </section>
   );
 }

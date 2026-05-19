@@ -13,7 +13,7 @@ import { PostSkeleton } from "@/components/common/LoadingSkeleton";
 import { showToast } from "@/components/common/toastStore";
 import { SEO } from "@/components/seo/SEO";
 import { type ReviewPost } from "@/services/api";
-import { getCommunityFeed, hidePost, likePost, reportPost, savePost, sharePost, type FeedType } from "@/services/postApi";
+import { getCommunityFeed, hidePost, likePost, savePost, sharePost, type FeedType } from "@/services/postApi";
 
 const pageSize = 10;
 
@@ -73,14 +73,6 @@ export function CommunityFeedPage({ initialFeedType = "latest" }: { initialFeedT
   }, [hasMore, isLoading, isLoadingMore, loadFeed]);
 
   const refreshCounts = async () => loadFeed(true);
-  const report = async (post: ReviewPost) => {
-    const reason = window.prompt("Ly do bao cao bai viet?");
-    if (!reason?.trim()) return;
-    await reportPost(post.id, reason.trim());
-    setNotice("Da gui bao cao. Cam on ban da giup cong dong an toan hon.");
-    showToast("Đã gửi báo cáo.", "success");
-  };
-
   return (
     <section className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
       <SEO
@@ -118,7 +110,6 @@ export function CommunityFeedPage({ initialFeedType = "latest" }: { initialFeedT
               post={post}
               onHide={(item) => void hidePost(item.id).then(() => { setPosts((current) => current.filter((post) => post.id !== item.id)); showToast("Đã ẩn bài viết.", "success"); }).catch(() => setError("Please sign in before hiding posts."))}
               onLike={(item) => void likePost(item.id).then(refreshCounts).catch(() => setError("Please sign in before liking posts."))}
-              onReport={(item) => void report(item).catch(() => setError("Could not report this post."))}
               onSave={(item) => void savePost(item.id).then(() => { showToast("Đã lưu bài viết.", "success"); return refreshCounts(); }).catch(() => setError("Please sign in before saving posts."))}
               onShare={(item) => void sharePost(item.id, item.slug).then(() => { showToast("Đã sao chép/chia sẻ liên kết.", "success"); return refreshCounts(); }).catch(() => setError("Could not share this post."))}
             />
@@ -133,4 +124,7 @@ export function CommunityFeedPage({ initialFeedType = "latest" }: { initialFeedT
     </section>
   );
 }
+
+
+
 

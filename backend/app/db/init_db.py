@@ -2,10 +2,10 @@ from app.db.base import Base
 from app.db.session import SessionLocal
 from app.db.session import engine
 from app.core.slugify import slugify
-from app.models import AdminAuditLog, AuthToken, Category, CommentLike, CommentReport, ContentView, DailyAnalytics, Itinerary, ItineraryItem, ModerationAction, Notification, Place, PlaceReview, PlaceReviewHelpful, PlaceReviewReport, PostComment, PostHide, PostLike, PostReport, PostSave, ReviewPost, SearchLog, SiteSettings, User, UserFollow, UserWarning
+from app.models import AdminAuditLog, AuthToken, Category, CommentLike, CommentReport, ContentView, DailyAnalytics, Itinerary, ItineraryItem, ModerationAction, Notification, Place, PlaceReview, PlaceReviewHelpful, PlaceReviewReport, PostComment, PostHide, PostLike, PostReport, PostSave, Report, ReviewPost, SearchLog, SiteSettings, User, UserFollow, UserWarning
 from sqlalchemy import inspect, text
 
-__all__ = ["AdminAuditLog", "AuthToken", "Category", "CommentLike", "CommentReport", "ContentView", "DailyAnalytics", "Itinerary", "ItineraryItem", "ModerationAction", "Notification", "Place", "PlaceReview", "PlaceReviewHelpful", "PlaceReviewReport", "PostComment", "PostHide", "PostLike", "PostReport", "PostSave", "ReviewPost", "SearchLog", "SiteSettings", "User", "UserFollow", "UserWarning"]
+__all__ = ["AdminAuditLog", "AuthToken", "Category", "CommentLike", "CommentReport", "ContentView", "DailyAnalytics", "Itinerary", "ItineraryItem", "ModerationAction", "Notification", "Place", "PlaceReview", "PlaceReviewHelpful", "PlaceReviewReport", "PostComment", "PostHide", "PostLike", "PostReport", "PostSave", "Report", "ReviewPost", "SearchLog", "SiteSettings", "User", "UserFollow", "UserWarning"]
 
 
 def init_db() -> None:

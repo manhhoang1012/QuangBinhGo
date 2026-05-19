@@ -13,12 +13,13 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { PostSkeleton } from "@/components/common/LoadingSkeleton";
+import { ReportModal } from "@/components/common/ReportModal";
 import { showToast } from "@/components/common/toastStore";
 import { SEO } from "@/components/seo/SEO";
 import { truncateMeta } from "@/components/seo/seoUtils";
 import { type Comment, type ReviewPost, type User } from "@/services/api";
 import { createComment, deleteComment, getComments, likeComment, reportComment, replyComment, unlikeComment, updateComment } from "@/services/commentApi";
-import { deleteReviewPost, getHashtagFeed, getReviewPost, likePost, reportPost, savePost, sharePost } from "@/services/postApi";
+import { deleteReviewPost, getHashtagFeed, getReviewPost, likePost, savePost, sharePost } from "@/services/postApi";
 import { getCurrentProfile } from "@/services/userApi";
 
 export function PostDetailPage() {
@@ -34,6 +35,7 @@ export function PostDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [reportPostOpen, setReportPostOpen] = useState(false);
 
   const loadPost = useCallback(async () => {
     setIsLoading(true);
@@ -138,7 +140,7 @@ export function PostDetailPage() {
             <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => void savePost(post.id).then(loadPost)}><Bookmark className="h-4 w-4" />{post.saves_count}</Button>
             <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => void sharePost(post.id, post.slug).then(loadPost)}><Share2 className="h-4 w-4" />{post.share_count}</Button>
             <span className="flex h-8 items-center gap-1.5 px-3"><Eye className="h-4 w-4" />{post.view_count ?? 0} lượt xem</span>
-            <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => { const reason = window.prompt("Ly do bao cao?"); if (reason) void reportPost(post.id, reason); }}><Flag className="h-4 w-4" />Report</Button>
+            {currentUser?.id !== post.author.id && <Button variant="ghost" className="h-8 gap-1.5 px-3" onClick={() => setReportPostOpen(true)}><Flag className="h-4 w-4" />Report</Button>}
             {canDelete && <Button variant="ghost" className="h-8 gap-1.5 px-3 text-destructive" onClick={() => setConfirmDeleteOpen(true)}><Trash2 className="h-4 w-4" />Delete</Button>}
           </div>
         </CardContent>
@@ -216,6 +218,7 @@ export function PostDetailPage() {
         onCancel={() => setConfirmDeleteOpen(false)}
         onConfirm={() => void handleDelete()}
       />
+      <ReportModal isOpen={reportPostOpen} onClose={() => setReportPostOpen(false)} targetId={post.id} targetType="post" />
     </section>
   );
 }

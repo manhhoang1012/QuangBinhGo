@@ -6,6 +6,7 @@ import { FollowButton } from "@/components/social/FollowButton";
 import { SuggestedUsers } from "@/components/social/SuggestedUsers";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ReportModal } from "@/components/common/ReportModal";
 import { SEO } from "@/components/seo/SEO";
 import { truncateMeta } from "@/components/seo/seoUtils";
 import { type ReviewPost, type User } from "@/services/api";
@@ -23,6 +24,7 @@ export function PublicProfilePage() {
   const [activeTab, setActiveTab] = useState<ProfileTab>("posts");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -93,15 +95,18 @@ export function PublicProfilePage() {
             </Button>
           </Link>
         ) : (
-          <FollowButton
-            username={user.username}
-            initialIsFollowing={user.is_following}
-            isSelf={user.is_self}
-            onChange={({ isFollowing, followersCount, message }) => {
-              if (followersCount >= 0) setUser((current) => current ? { ...current, followers_count: followersCount, is_following: isFollowing } : current);
-              setNotice(message);
-            }}
-          />
+          <div className="flex flex-wrap gap-2">
+            <FollowButton
+              username={user.username}
+              initialIsFollowing={user.is_following}
+              isSelf={user.is_self}
+              onChange={({ isFollowing, followersCount, message }) => {
+                if (followersCount >= 0) setUser((current) => current ? { ...current, followers_count: followersCount, is_following: isFollowing } : current);
+                setNotice(message);
+              }}
+            />
+            <Button onClick={() => setReportOpen(true)} variant="outline">Báo cáo</Button>
+          </div>
         )}
       </div>
 
@@ -165,6 +170,7 @@ export function PublicProfilePage() {
         </div>
         <aside className="lg:sticky lg:top-20 lg:self-start"><SuggestedUsers /></aside>
       </div>
+      <ReportModal isOpen={reportOpen} onClose={() => setReportOpen(false)} targetId={user.id} targetType="user" />
     </section>
   );
 }

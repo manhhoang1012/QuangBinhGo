@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ReportModal } from "@/components/common/ReportModal";
 import { type Comment, type User } from "@/services/api";
 
 interface CommentThreadProps {
@@ -13,7 +14,7 @@ interface CommentThreadProps {
   onEdit: (commentId: number, content: string) => Promise<void>;
   onLike: (comment: Comment) => Promise<void>;
   onReply: (commentId: number, content: string) => Promise<void>;
-  onReport: (commentId: number, reason: "spam" | "offensive" | "harassment" | "other", detail?: string) => Promise<void>;
+  onReport?: (commentId: number, reason: "spam" | "offensive" | "harassment" | "other", detail?: string) => Promise<void>;
 }
 
 export function CommentThread({ comment, currentUser, onDelete, onEdit, onLike, onReply, onReport }: CommentThreadProps) {
@@ -22,6 +23,7 @@ export function CommentThread({ comment, currentUser, onDelete, onEdit, onLike, 
   const [editOpen, setEditOpen] = useState(false);
   const [editText, setEditText] = useState(comment.content);
   const [repliesOpen, setRepliesOpen] = useState(comment.replies.length <= 2);
+  const [reportOpen, setReportOpen] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const isOwner = currentUser?.id === comment.author.id;
   const canModerate = currentUser?.role === "admin" || currentUser?.role === "moderator";
@@ -52,15 +54,6 @@ export function CommentThread({ comment, currentUser, onDelete, onEdit, onLike, 
     } finally {
       setIsBusy(false);
     }
-  };
-
-  const report = async () => {
-    const raw = window.prompt("Chon ly do: spam, offensive, harassment, other", "spam");
-    if (!raw) return;
-    const reason = raw.trim() as "spam" | "offensive" | "harassment" | "other";
-    if (!["spam", "offensive", "harassment", "other"].includes(reason)) return;
-    const detail = window.prompt("Mo ta them neu can") ?? undefined;
-    await onReport(comment.id, reason, detail);
   };
 
   return (
@@ -108,12 +101,13 @@ export function CommentThread({ comment, currentUser, onDelete, onEdit, onLike, 
           </Button>
         )}
         {!isOwner && !isDeleted && (
-          <Button variant="ghost" className="h-8 gap-1 px-3" disabled={isBusy} onClick={() => void report()}>
+          <Button variant="ghost" className="h-8 gap-1 px-3" disabled={isBusy} onClick={() => setReportOpen(true)}>
             <Flag className="h-4 w-4" />
             Bao cao
           </Button>
         )}
       </div>
+      <ReportModal isOpen={reportOpen} onClose={() => setReportOpen(false)} targetId={comment.id} targetType="comment" />
 
       {replyOpen && (
         <div className="mt-3 flex gap-2">

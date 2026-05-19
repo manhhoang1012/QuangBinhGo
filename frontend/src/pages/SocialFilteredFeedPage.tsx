@@ -4,7 +4,7 @@ import { useParams } from "react-router-dom";
 import { PostCard } from "@/components/community/PostCard";
 import { Card } from "@/components/ui/card";
 import { type ReviewPost } from "@/services/api";
-import { getHashtagFeed, getPlaceFeed, hidePost, likePost, reportPost, savePost, sharePost } from "@/services/postApi";
+import { getHashtagFeed, getPlaceFeed, hidePost, likePost, savePost, sharePost } from "@/services/postApi";
 
 const pageSize = 10;
 
@@ -72,7 +72,6 @@ export function SocialFilteredFeedPage({ mode }: { mode: "hashtag" | "place" }) 
             post={post}
             onHide={(item) => void hidePost(item.id).then(() => setPosts((current) => current.filter((post) => post.id !== item.id)))}
             onLike={(item) => void likePost(item.id).then(refresh)}
-            onReport={(item) => { const reason = window.prompt("Ly do bao cao?"); if (reason) void reportPost(item.id, reason); }}
             onSave={(item) => void savePost(item.id).then(refresh)}
             onShare={(item) => void sharePost(item.id, item.slug).then(refresh)}
           />
@@ -84,3 +83,4 @@ export function SocialFilteredFeedPage({ mode }: { mode: "hashtag" | "place" }) 
     </section>
   );
 }
+

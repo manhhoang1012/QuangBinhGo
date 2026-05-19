@@ -8,6 +8,7 @@ from app.models.place import Category, Place
 from pydantic import BaseModel, Field
 
 from app.models.review_post import CommentLike, CommentReport, PlaceReview, PlaceReviewReport, PostComment, PostLike, PostReport, ReviewPost
+from app.models.report import Report
 from app.models.user import User
 from app.repositories.place_repository import PlaceRepository
 from app.repositories.review_post_repository import ReviewPostRepository
@@ -16,6 +17,7 @@ from app.schemas.place import CategoryCreate, CategoryRead, CategoryUpdate, Plac
 from app.schemas.audit_log import AdminAuditLogListRead, AdminAuditLogRead
 from app.schemas.review_post import AdminCommentRead, AdminPlaceReviewRead, AdminPostReportRead, CommentReportRead, CommentStatusUpdate, PlaceReviewReportRead, PlaceReviewStatusUpdate, PostReportRead, PostStatusUpdate, ReviewPostRead
 from app.schemas.site_settings import SettingsUploadResponse, SiteSettingsPayload
+from app.schemas.report import ReportListRead, ReportReject, ReportResolve
 from app.schemas.user import AdminUserRead, MessageResponse, UserRoleUpdate, UserStatusUpdate
 from app.services.place_service import PlaceService
 from app.services.notification_service import NotificationService
@@ -23,6 +25,7 @@ from app.services.review_post_service import ReviewPostService
 from app.services.settings_service import SettingsService
 from app.services.upload_service import UploadService
 from app.services.audit_service import AuditService
+from app.services.report_service import ReportService
 from app.services.user_service import UserService
 
 router = APIRouter()
@@ -144,15 +147,8 @@ def dashboard_stats(_: User = Depends(require_admin), db: Session = Depends(get_
     total_comments = db.scalar(select(func.count(PostComment.id))) or 0
     total_reviews = db.scalar(select(func.count(PlaceReview.id))) or 0
     total_likes = (db.scalar(select(func.count(PostLike.id))) or 0) + (db.scalar(select(func.count(CommentLike.id))) or 0)
-    post_reports = db.scalar(select(func.count(PostReport.id))) or 0
-    comment_reports = db.scalar(select(func.count(CommentReport.id))) or 0
-    review_reports = db.scalar(select(func.count(PlaceReviewReport.id))) or 0
-    total_reports = post_reports + comment_reports + review_reports
-    pending_reports = (
-        (db.scalar(select(func.count(PostReport.id)).where(PostReport.status.in_(["open", "pending"]))) or 0)
-        + (db.scalar(select(func.count(CommentReport.id)).where(CommentReport.status.in_(["open", "pending"]))) or 0)
-        + (db.scalar(select(func.count(PlaceReviewReport.id)).where(PlaceReviewReport.status.in_(["open", "pending"]))) or 0)
-    )
+    total_reports = db.scalar(select(func.count(Report.id))) or 0
+    pending_reports = db.scalar(select(func.count(Report.id)).where(Report.status == "pending")) or 0
     post_repo = ReviewPostRepository(db)
     svc = post_service(db)
     featured_ids = list(db.scalars(select(ReviewPost.id).where(ReviewPost.is_featured.is_(True)).order_by(ReviewPost.created_at.desc()).limit(5)).all())
@@ -388,72 +384,33 @@ def admin_list_post_reports(
     return post_service(db).list_reports(status_value=status_value, skip=skip, limit=limit)
 
 
-@router.get("/reports")
+@router.get("/reports", response_model=ReportListRead)
 def admin_list_reports(
     type: str | None = Query(default=None, pattern="^(post|comment|user|review)$"),
     status_value: str | None = Query(default=None, alias="status"),
+    reason: str | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),
     _: User = Depends(require_moderator_or_admin),
     db: Session = Depends(get_db),
-) -> dict:
-    items: list[dict] = []
-    if type in {None, "post"}:
-        statement = select(PostReport).options(selectinload(PostReport.reporter), selectinload(PostReport.post)).order_by(PostReport.created_at.desc())
-        if status_value:
-            statement = statement.where(PostReport.status == status_value)
-        for report in db.scalars(statement).all():
-            items.append({
-                "id": report.id,
-                "type": "post",
-                "reporter": user_summary(report.reporter),
-                "target_id": report.post_id,
-                "target_label": report.post.title if report.post else f"Post #{report.post_id}",
-                "reason": report.reason,
-                "detail": report.description,
-                "status": report.status,
-                "created_at": report.created_at,
-            })
-    if type in {None, "comment"}:
-        statement = select(CommentReport).options(selectinload(CommentReport.reporter), selectinload(CommentReport.comment)).order_by(CommentReport.created_at.desc())
-        if status_value:
-            statement = statement.where(CommentReport.status == status_value)
-        for report in db.scalars(statement).all():
-            items.append({
-                "id": report.id,
-                "type": "comment",
-                "reporter": user_summary(report.reporter),
-                "target_id": report.comment_id,
-                "target_label": report.comment.content[:80] if report.comment else f"Comment #{report.comment_id}",
-                "reason": report.reason,
-                "detail": report.detail,
-                "status": report.status,
-                "created_at": report.created_at,
-            })
-    if type in {None, "review"}:
-        statement = select(PlaceReviewReport).options(selectinload(PlaceReviewReport.reporter), selectinload(PlaceReviewReport.review)).order_by(PlaceReviewReport.created_at.desc())
-        if status_value:
-            statement = statement.where(PlaceReviewReport.status == status_value)
-        for report in db.scalars(statement).all():
-            items.append({
-                "id": report.id,
-                "type": "review",
-                "reporter": user_summary(report.reporter),
-                "target_id": report.review_id,
-                "target_label": report.review.content[:80] if report.review else f"Review #{report.review_id}",
-                "reason": report.reason,
-                "detail": report.detail,
-                "status": report.status,
-                "created_at": report.created_at,
-            })
-    items.sort(key=lambda item: item["created_at"], reverse=True)
-    total = len(items)
-    return {"items": items[skip:skip + limit], "total": total, "skip": skip, "limit": limit}
+) -> ReportListRead:
+    page_value = page if page != 1 else (skip // limit) + 1
+    return ReportService(db).list_reports(target_type=type, status_value=status_value, reason=reason, page=page_value, limit=limit)
 
 
-@router.patch("/reports/{report_id}/resolve", response_model=PostReportRead)
-def admin_resolve_report(report_id: int, _: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
-    return post_service(db).resolve_report(report_id=report_id, status_value="resolved")
+@router.patch("/reports/{report_id}/resolve")
+def admin_resolve_report(report_id: int, payload: ReportResolve = ReportResolve(), request: Request = None, current_user: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
+    report = ReportService(db).resolve_report(report_id=report_id, actor=current_user, payload=payload)
+    audit(db, request, current_user, "report_resolved", report.target_type, report.target_id, {"report_id": report_id, "action": payload.action})
+    return report
+
+
+@router.patch("/reports/{report_id}/reject")
+def admin_reject_report(report_id: int, payload: ReportReject, request: Request, current_user: User = Depends(require_moderator_or_admin), db: Session = Depends(get_db)):
+    report = ReportService(db).reject_report(report_id=report_id, actor=current_user, payload=payload)
+    audit(db, request, current_user, "report_rejected", report.target_type, report.target_id, {"report_id": report_id})
+    return report
 
 
 @router.patch("/reports/{report_id}/status")
@@ -464,15 +421,12 @@ def admin_update_report_status(
     _: User = Depends(require_moderator_or_admin),
     db: Session = Depends(get_db),
 ) -> dict:
-    model = {"post": PostReport, "comment": CommentReport, "review": PlaceReviewReport}[payload.type]
-    report = db.get(model, report_id)
-    if not report:
-        raise HTTPException(status_code=404, detail="Report not found.")
-    report.status = payload.status
-    db.add(report)
-    db.commit()
-    audit(db, request, _, f"reports.{payload.status}", payload.type, report_id)
-    return {"id": report_id, "type": payload.type, "status": payload.status}
+    if payload.status == "resolved":
+        report = ReportService(db).resolve_report(report_id=report_id, actor=_, payload=ReportResolve(action="none"))
+    else:
+        report = ReportService(db).reject_report(report_id=report_id, actor=_, payload=ReportReject(resolution_note=None))
+    audit(db, request, _, f"reports.{payload.status}", report.target_type, report.target_id, {"report_id": report_id})
+    return {"id": report_id, "type": report.target_type, "status": report.status}
 
 
 @router.get("/comments", response_model=list[AdminCommentRead])

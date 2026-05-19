@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { PostCard } from "@/components/community/PostCard";
 import { Card } from "@/components/ui/card";
 import { type ReviewPost } from "@/services/api";
-import { getSavedPosts, likePost, reportPost, savePost, sharePost } from "@/services/postApi";
+import { getSavedPosts, likePost, savePost, sharePost } from "@/services/postApi";
 
 export function SavedPostsPage() {
   const [posts, setPosts] = useState<ReviewPost[]>([]);
@@ -35,7 +35,6 @@ export function SavedPostsPage() {
             key={post.id}
             post={post}
             onLike={(item) => void likePost(item.id).then(loadSaved)}
-            onReport={(item) => { const reason = window.prompt("Ly do bao cao?"); if (reason) void reportPost(item.id, reason); }}
             onSave={(item) => void savePost(item.id).then(loadSaved)}
             onShare={(item) => void sharePost(item.id, item.slug).then(loadSaved)}
           />
@@ -44,3 +43,4 @@ export function SavedPostsPage() {
     </section>
   );
 }
+
